@@ -3,7 +3,8 @@ Bundle-ManifestVersion: 2
 Bundle-Name: iDempiere Core
 Bundle-SymbolicName: org.adempiere.base;singleton:=true
 Bundle-Version: 7.1.0.qualifier
-Bundle-ClassPath: .,
+Bundle-ClassPath: idIta.modification.org.adempiere.base.jar,
+ .,
  lib/bsh.jar,
  lib/commons-validator.jar,
  lib/cron4j.jar,

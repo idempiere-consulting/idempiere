@@ -56,7 +56,8 @@ Import-Package: groovy.transform.stc;version="2.4.7",
  org.slf4j.spi;version="1.7.2",
  org.springframework.web.util
 DynamicImport-Package: action.images
-Bundle-ClassPath: .,
+Bundle-ClassPath: idIta.modification.org.adempiere.ui.zk.jar,
+ .,
  WEB-INF/lib/ckez.jar,
  WEB-INF/lib/daisydiff.jar,
  WEB-INF/lib/owasp-java-html-sanitizer.jar
