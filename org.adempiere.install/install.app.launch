@@ -48,13 +48,17 @@
         <setEntry value="org.apache.ant*1.9.6.v201510161327@default:default"/>
         <setEntry value="org.apache.commons.codec*1.6.0.v201305230611@default:default"/>
         <setEntry value="org.apache.commons.collections@default:default"/>
+        <setEntry value="org.apache.commons.commons-collections4@default:default"/>
+        <setEntry value="org.apache.commons.compress*1.18.0.v20181121-2221@default:default"/>
         <setEntry value="org.apache.commons.logging*1.2.0.v20180409-1502@default:default"/>
         <setEntry value="org.apache.commons.net@default:default"/>
         <setEntry value="org.apache.felix.scr@1:true"/>
         <setEntry value="org.apache.geronimo.specs.geronimo-j2ee-management_1.1_spec@default:default"/>
+        <setEntry value="org.apache.poi.poi-ooxml-schemas@default:default"/>
         <setEntry value="org.apache.poi.poi-ooxml@default:default"/>
         <setEntry value="org.apache.poi.poi@default:default"/>
         <setEntry value="org.apache.servicemix.bundles.cglib@default:default"/>
+        <setEntry value="org.apache.xmlbeans*3.1.0@default:default"/>
         <setEntry value="org.cryptacular@default:default"/>
         <setEntry value="org.eclipse.ant.core@default:default"/>
         <setEntry value="org.eclipse.core.contenttype@default:default"/>
@@ -74,12 +78,11 @@
         <setEntry value="org.eclipse.osgi.services@default:default"/>
         <setEntry value="org.eclipse.osgi.util@default:default"/>
         <setEntry value="org.hamcrest.core@default:default"/>
-        <setEntry value="org.jfree.chart-osgi@default:default"/>
-        <setEntry value="org.jfree.jcommon-osgi@default:default"/>
+        <setEntry value="org.jfree.chart@default:default"/>
+        <setEntry value="org.jfree.jcommon@default:default"/>
         <setEntry value="org.junit@default:default"/>
         <setEntry value="org.krysalis.barcode4j@default:default"/>
         <setEntry value="org.passay@default:default"/>
-        <setEntry value="org.restlet*2.4.1@default:default"/>
         <setEntry value="slf4j.api@default:default"/>
         <setEntry value="slf4j.jcl@default:false"/>
     </setAttribute>
