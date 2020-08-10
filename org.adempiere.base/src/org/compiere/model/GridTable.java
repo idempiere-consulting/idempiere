@@ -347,7 +347,7 @@ public class GridTable extends AbstractTableModel
 			if (i > 0)
 				select.append(",");
 			GridField field = (GridField)m_fields.get(i);
-			select.append(field.getColumnSQL(true));	//	ColumnName or Virtual Column
+			select.append(field.isVirtualColumn() ? field.getColumnSQL(true) : DB.getDatabase().quoteColumnName(field.getColumnSQL(true)));	//	ColumnName or Virtual Column
 		}
 		//
 		select.append(" FROM ").append(m_tableName);
@@ -424,8 +424,10 @@ public class GridTable extends AbstractTableModel
 			m_SQL += " ORDER BY " + m_orderClause;
 		}
 		//
-		log.fine(m_SQL_Count);
-		Env.setContext(m_ctx, m_WindowNo, m_TabNo, GridTab.CTX_SQL, m_SQL);
+		if (log.isLoggable(Level.FINE))
+			log.fine(m_SQL_Count);
+		if (log.isLoggable(Level.INFO))
+			Env.setContext(m_ctx, m_WindowNo, m_TabNo, GridTab.CTX_SQL, m_SQL);
 		return m_SQL;
 	}	//	createSelectSql
 
