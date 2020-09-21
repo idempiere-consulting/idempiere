@@ -36,7 +36,6 @@ import org.adempiere.base.Service;
 import org.adempiere.model.GenericPO;
 import org.compiere.db.AdempiereDatabase;
 import org.compiere.db.Database;
-import org.compiere.util.CCache;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
