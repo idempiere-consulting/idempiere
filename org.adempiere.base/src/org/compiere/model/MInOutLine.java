@@ -363,7 +363,7 @@ public class MInOutLine extends X_M_InOutLine
 	public MProduct getProduct()
 	{
 		if (m_product == null && getM_Product_ID() != 0)
-			m_product = MProduct.get (getCtx(), getM_Product_ID());
+			m_product = MProduct.getCopy(getCtx(), getM_Product_ID(), get_TrxName());
 		return m_product;
 	}	//	getProduct
 
@@ -517,8 +517,26 @@ public class MInOutLine extends X_M_InOutLine
 		if (getParent().pendingConfirmations()) {
 			if (  newRecord ||
 				(is_ValueChanged(COLUMNNAME_MovementQty) && !is_ValueChanged(COLUMNNAME_TargetQty))) {
-				log.saveError("SaveError", Msg.parseTranslation(getCtx(), "@Open@: @M_InOutConfirm_ID@"));
-				return false;
+
+				if (getMovementQty().signum() == 0)
+				{
+					String docAction = getParent().getDocAction();
+					String docStatus = getParent().getDocStatus();
+					if (   MInOut.DOCACTION_Void.equals(docAction)
+						&& (   MInOut.DOCSTATUS_Drafted.equals(docStatus)
+							|| MInOut.DOCSTATUS_Invalid.equals(docStatus)
+							|| MInOut.DOCSTATUS_InProgress.equals(docStatus)
+							|| MInOut.DOCSTATUS_Approved.equals(docStatus)
+							|| MInOut.DOCSTATUS_NotApproved.equals(docStatus)
+						   )
+						)
+					{
+						// OK to save qty=0 when voiding
+					} else {
+						log.saveError("SaveError", Msg.parseTranslation(getCtx(), "@Open@: @M_InOutConfirm_ID@"));
+						return false;
+					}
+				}
 			}
 		}
 		// Locator is mandatory if no charge is defined - teo_sarca BF [ 2757978 ]

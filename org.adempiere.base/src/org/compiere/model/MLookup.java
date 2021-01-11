@@ -544,7 +544,7 @@ public final class MLookup extends Lookup implements Serializable
 		if (log.isLoggable(Level.FINER)) log.finer(m_info.KeyColumn + ": " + key 
 				+ ", SaveInCache=" + saveInCache + ",Local=" + cacheLocal);
 		
-		String cacheKey = m_info.TableName+"|"+m_info.KeyColumn;
+		String cacheKey = m_info.TableName+"|"+m_info.KeyColumn+"|"+m_info.AD_Reference_Value_ID+"|"+Env.getAD_Language(Env.getCtx());
 		boolean isNumber = m_info.KeyColumn.endsWith("_ID");
 		CCache<Integer, KeyNamePair> knpCache = null;
 		CCache<String, ValueNamePair> vnpCache = null;
@@ -643,7 +643,7 @@ public final class MLookup extends Lookup implements Serializable
 	public NamePair[] getDirect(Object[] keys) 
 	{
 		List<NamePair> list = new ArrayList<NamePair>();
-		String cacheKey = m_info.TableName+"|"+m_info.KeyColumn;
+		String cacheKey = m_info.TableName+"|"+m_info.KeyColumn+"|"+m_info.AD_Reference_Value_ID+"|"+Env.getAD_Language(Env.getCtx());
 		boolean isNumber = m_info.KeyColumn.endsWith("_ID");
 		CCache<Integer, KeyNamePair> knpCache = null;
 		CCache<String, ValueNamePair> vnpCache = null;
