@@ -15,6 +15,7 @@ import javax.activation.FileDataSource;
 
 import org.adempiere.base.upload.IUploadService;
 import org.adempiere.exceptions.AdempiereException;
+import org.adempiere.report.jasper.ReportStarter;
 import org.adempiere.webui.ClientInfo;
 import org.adempiere.webui.Extensions;
 import org.adempiere.webui.LayoutUtils;
@@ -174,7 +175,7 @@ public class ZkJRViewer extends Window implements EventListener<Event>, ITabOnCl
 
 	private void init() {
 		final boolean isCanExport=MRole.getDefault().isCanExport();
-		defaultType = jasperPrint == null ? null : jasperPrint.getProperty("IDEMPIERE_REPORT_TYPE");
+		defaultType = jasperPrint == null ? null : jasperPrint.getProperty(ReportStarter.IDEMPIERE_REPORT_TYPE);
 		if (Util.isEmpty(defaultType)) {
 			defaultType = MSysConfig.getValue(MSysConfig.ZK_REPORT_JASPER_OUTPUT_TYPE, "PDF",
 					Env.getAD_Client_ID(Env.getCtx()), Env.getAD_Org_ID(Env.getCtx()));//It gets default Jasper output type
@@ -555,9 +556,10 @@ public class ZkJRViewer extends Window implements EventListener<Event>, ITabOnCl
 		String subject = m_title;
 
 		WEMailDialog dialog = new WEMailDialog (Msg.getMsg(Env.getCtx(), "SendMail"),
-			from, to, subject, "", new FileDataSource(attachment));
-		AEnv.showWindow(dialog);
+			from, to, subject, "", new FileDataSource(attachment),
+			m_WindowNo, m_printInfo.getAD_Table_ID(), m_printInfo.getRecord_ID(), m_printInfo);
 
+		AEnv.showWindow(dialog);
 	}	//	cmd_sendMail
 
 	public void onEvent(Event event) throws Exception {

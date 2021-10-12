@@ -22,7 +22,7 @@ import org.compiere.util.KeyNamePair;
 
 /** Generated Interface for AD_PrintFormatItem
  *  @author iDempiere (generated) 
- *  @version Release 8.2
+ *  @version Development 9.0
  */
 public interface I_AD_PrintFormatItem 
 {
@@ -540,6 +540,19 @@ public interface I_AD_PrintFormatItem
 	  * Indicates if this document / line is printed
 	  */
 	public boolean isPrinted();
+
+    /** Column name IsPrintInstanceAttributes */
+    public static final String COLUMNNAME_IsPrintInstanceAttributes = "IsPrintInstanceAttributes";
+
+	/** Set Print Attributes.
+	  * Print each attributes as report column instead of printing the description of attribute set instance
+	  */
+	public void setIsPrintInstanceAttributes (boolean IsPrintInstanceAttributes);
+
+	/** Get Print Attributes.
+	  * Print each attributes as report column instead of printing the description of attribute set instance
+	  */
+	public boolean isPrintInstanceAttributes();
 
     /** Column name IsRelativePosition */
     public static final String COLUMNNAME_IsRelativePosition = "IsRelativePosition";
