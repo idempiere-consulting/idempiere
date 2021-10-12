@@ -209,7 +209,7 @@ public class DB_PostgreSQL implements AdempiereDatabase
 			.append(connection.getDbHost())
 			.append(":").append(connection.getDbPort())
 			.append("/").append(connection.getDbName())
-			.append("?encoding=UNICODE");
+			.append("?encoding=UNICODE&ApplicationName=iDempiere");
 
 		String urlParameters = System.getProperty("org.idempiere.postgresql.URLParameters");
 	    if (!Util.isEmpty(urlParameters)) {
@@ -1236,8 +1236,10 @@ public class DB_PostgreSQL implements AdempiereDatabase
 			return false;
 		else if (sysNative != null)
 			return sysNative;
-		else
+		else if (!Util.isEmpty(Ini.getProperty(P_POSTGRE_SQL_NATIVE), true))
 			return Ini.isPropertyBool(P_POSTGRE_SQL_NATIVE);
+		else
+			return true;
 	}
 	
 	/**
