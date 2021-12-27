@@ -28,7 +28,7 @@ import org.compiere.util.Env;
 import org.eevolution.model.MPPProductBOMLine;
 
 /**
- * Cost Multi-Level BOM & Formula Review
+ * Cost Multi-Level BOM and Formula Review
  * 
  * @author victor.perez@e-evolution.com
  * @author Teo Sarca, www.arhipac.ro
@@ -36,6 +36,7 @@ import org.eevolution.model.MPPProductBOMLine;
  * @author pbowden@adaxa.com modified for manufacturing light
  * 
  */
+@org.adempiere.base.annotation.Process
 public class IndentedBOM extends SvrProcess
 {
 	//

@@ -85,6 +85,7 @@ import org.zkoss.zul.Vlayout;
 
 
 
+@org.idempiere.ui.zk.annotation.Form(name = "org.compiere.apps.form.VBOMDrop")
 public class WBOMDrop extends ADForm implements EventListener<Event>, ValueChangeListener
 {
 	/**
@@ -143,8 +144,6 @@ public class WBOMDrop extends ADForm implements EventListener<Event>, ValueChang
 	
 	/**
 	 *	Initialize Panel
-	 *  @param WindowNo window
-	 *  @param frame parent frame
 	 */
 	protected void initForm()
 	{

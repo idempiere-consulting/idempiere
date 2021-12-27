@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: iDempiere Core
 Bundle-SymbolicName: org.adempiere.base;singleton:=true
-Bundle-Version: 9.0.0.qualifier
+Bundle-Version: 10.0.0.qualifier
 Bundle-ClassPath: .,
  lib/bsh.jar,
  lib/commons-validator.jar,
@@ -19,9 +19,11 @@ Export-Package: bsh,
  bsh.servlet,
  bsh.util,
  com.akunagroup.uk.postcode,
+ io.github.classgraph,
  it.sauronsoftware.cron4j,
  org.adempiere.apps.graph,
  org.adempiere.base,
+ org.adempiere.base.annotation,
  org.adempiere.base.ds,
  org.adempiere.base.equinox,
  org.adempiere.base.event,

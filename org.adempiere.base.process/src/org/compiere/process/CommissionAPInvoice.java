@@ -34,6 +34,7 @@ import org.compiere.util.Msg;
  *  @author Jorg Janke
  *  @version $Id: CommissionAPInvoice.java,v 1.2 2006/07/30 00:51:01 jjanke Exp $
  */
+@org.adempiere.base.annotation.Process
 public class CommissionAPInvoice extends SvrProcess
 {
 	/**
@@ -80,7 +81,6 @@ public class CommissionAPInvoice extends SvrProcess
 		invoice.setClientOrg(com.getAD_Client_ID(), com.getAD_Org_ID());
 		invoice.setC_DocTypeTarget_ID(MDocType.DOCBASETYPE_APInvoice);	//	API
 		invoice.setBPartner(bp);
-	//	invoice.setDocumentNo (comRun.getDocumentNo());		//	may cause unique constraint
 		invoice.setSalesRep_ID(getAD_User_ID());	//	caller
 		//
 		if (com.getC_Currency_ID() != invoice.getC_Currency_ID())

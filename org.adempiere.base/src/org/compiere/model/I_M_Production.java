@@ -22,7 +22,7 @@ import org.compiere.util.KeyNamePair;
 
 /** Generated Interface for M_Production
  *  @author iDempiere (generated) 
- *  @version Development 9.0
+ *  @version Release 9
  */
 public interface I_M_Production 
 {
@@ -93,12 +93,12 @@ public interface I_M_Production
     /** Column name C_BPartner_ID */
     public static final String COLUMNNAME_C_BPartner_ID = "C_BPartner_ID";
 
-	/** Set Business Partner .
+	/** Set Business Partner.
 	  * Identifies a Business Partner
 	  */
 	public void setC_BPartner_ID (int C_BPartner_ID);
 
-	/** Get Business Partner .
+	/** Get Business Partner.
 	  * Identifies a Business Partner
 	  */
 	public int getC_BPartner_ID();
@@ -318,6 +318,21 @@ public interface I_M_Production
 	/** Get Use Production Plan	  */
 	public boolean isUseProductionPlan();
 
+    /** Column name M_InOutLine_ID */
+    public static final String COLUMNNAME_M_InOutLine_ID = "M_InOutLine_ID";
+
+	/** Set Shipment/Receipt Line.
+	  * Line on Shipment or Receipt document
+	  */
+	public void setM_InOutLine_ID (int M_InOutLine_ID);
+
+	/** Get Shipment/Receipt Line.
+	  * Line on Shipment or Receipt document
+	  */
+	public int getM_InOutLine_ID();
+
+	public org.compiere.model.I_M_InOutLine getM_InOutLine() throws RuntimeException;
+
     /** Column name M_Locator_ID */
     public static final String COLUMNNAME_M_Locator_ID = "M_Locator_ID";
 
@@ -412,13 +427,17 @@ public interface I_M_Production
     /** Column name PP_Product_BOM_ID */
     public static final String COLUMNNAME_PP_Product_BOM_ID = "PP_Product_BOM_ID";
 
-	/** Set BOM & Formula.
-	  * BOM & Formula
+	/** Set BOM &amp;
+ Formula.
+	  * BOM &amp;
+ Formula
 	  */
 	public void setPP_Product_BOM_ID (int PP_Product_BOM_ID);
 
-	/** Get BOM & Formula.
-	  * BOM & Formula
+	/** Get BOM &amp;
+ Formula.
+	  * BOM &amp;
+ Formula
 	  */
 	public int getPP_Product_BOM_ID();
 
