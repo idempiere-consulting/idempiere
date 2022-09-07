@@ -19,7 +19,7 @@ import java.util.logging.Level;
 
 import org.adempiere.base.upload.IUploadService;
 import org.adempiere.exceptions.AdempiereException;
-import org.adempiere.impexp.AbstractExcelExporter;
+import org.adempiere.impexp.AbstractXLSXExporter;
 import org.adempiere.model.IInfoColumn;
 import org.adempiere.model.MInfoProcess;
 import org.adempiere.model.MInfoRelated;
@@ -65,7 +65,7 @@ import org.adempiere.webui.panel.InfoPanel;
 import org.adempiere.webui.session.SessionManager;
 import org.adempiere.webui.theme.ThemeManager;
 import org.adempiere.webui.util.ZKUpdateUtil;
-import org.adempiere.webui.window.FDialog;
+import org.adempiere.webui.window.Dialog;
 import org.compiere.minigrid.ColumnInfo;
 import org.compiere.minigrid.EmbedWinInfo;
 import org.compiere.minigrid.IDColumn;
@@ -134,7 +134,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 1180753002653812499L;
+	private static final long serialVersionUID = -7909883495636121689L;
 	
 	protected Grid parameterGrid;
 	private Borderlayout layout;
@@ -399,7 +399,10 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
    					item.setValue(process);
    					item.setLabel(process.get_Translation(MProcess.COLUMNNAME_Name));
    					if (!Util.isEmpty(data.getImageURL(), true)) {
-   		   	   			item.setImage(ThemeManager.getThemeResource("images/" + data.getImageURL()));
+   						if (ThemeManager.isUseFontIconForImage())
+   		   	   				item.setIconSclass(ThemeManager.getIconSclass(data.getImageURL()));
+   						else
+   							item.setImage(ThemeManager.getThemeResource("images/" + data.getImageURL()));
    		   	   		}
    				}
 			});
@@ -522,7 +525,10 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
    	   		Menuitem ipMenuItem = new Menuitem();
    	   		ipMenuItem.setLabel(process.get_Translation(MProcess.COLUMNNAME_Name));
    	   		if (!Util.isEmpty(infoProcess.getImageURL(), true)) {
-   	   			ipMenuItem.setImage(ThemeManager.getThemeResource("images/" + infoProcess.getImageURL()));
+   	   			if (ThemeManager.isUseFontIconForImage())
+   	   				ipMenuItem.setIconSclass(ThemeManager.getIconSclass(infoProcess.getImageURL()));
+   	   			else
+   	   				ipMenuItem.setImage(ThemeManager.getThemeResource("images/" + infoProcess.getImageURL()));
    	   		}   	   		
    	   		ipMenuItem.setAttribute(PROCESS_ID_KEY, infoProcess.getAD_Process_ID());
    	   		ipMenuItem.addEventListener(Events.ON_CLICK, this);
@@ -2002,12 +2008,12 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 			{
 				if (log.isLoggable(Level.INFO))
 					log.log(Level.INFO, countSql, e);
-				FDialog.error(p_WindowNo, INFO_QUERY_TIME_OUT_ERROR);
+				Dialog.error(p_WindowNo, INFO_QUERY_TIME_OUT_ERROR);
 			}
 			else
 			{
 				log.log(Level.SEVERE, countSql, e);
-				FDialog.error(p_WindowNo, "DBExecuteError", e.getMessage());
+				Dialog.error(p_WindowNo, "DBExecuteError", e.getMessage());
 			}
 			m_count = -2;
 		}
@@ -2023,7 +2029,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 		{
 			if (promptError)
 			{
-				FDialog.error(getWindowNo(), this, "InfoFindOverMax",
+				Dialog.error(getWindowNo(), "InfoFindOverMax",
 		                m_count + " > " + infoWindow.getMaxQueryRecords());
 			}
 	        m_count = 0;
@@ -2225,7 +2231,24 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 		if (!isLookup() && Util.isEmpty(isSOTrx)) {
 			isSOTrx = "Y";
 		}
-		
+
+		if (infoWindow != null) {
+
+			MUserDefInfo userDef = MUserDefInfo.getBestMatch(Env.getCtx(), infoWindow.getAD_InfoWindow_ID());
+
+			if (userDef != null) {
+				if (isSOTrx.equals("N") && userDef.getPO_Window_ID() > 0)
+					return userDef.getPO_Window_ID();
+				if (userDef.getAD_Window_ID() > 0)
+					return userDef.getAD_Window_ID();
+			}
+
+			if (isSOTrx.equals("N") && infoWindow.getPO_Window_ID() > 0)
+				return infoWindow.getPO_Window_ID();
+			if (infoWindow.getAD_Window_ID() > 0)
+				return infoWindow.getAD_Window_ID();
+		}
+
 		return super.getAD_Window_ID(MTable.getTableName(Env.getCtx(), infoWindow.getAD_Table_ID()), isSOTrx.equalsIgnoreCase("Y"));
 	}
 	
@@ -2381,7 +2404,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 					}
 					
 					String msg = Msg.translate(ctx, sbError.toString());
-					FDialog.error(0, this, "ValidationError", msg); // TODO messaggio
+					Dialog.error(0, "ValidationError", msg); // TODO messaggio
 				}
 				else	
 					changeIsValid = true;
@@ -2390,7 +2413,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 			{
 				log.log(Level.SEVERE, "Error executing validation SQL: " + validationSQL, e);
 				
-				FDialog.error(0, this, "Error", validationSQL); // TODO messaggio
+				Dialog.error(0, "Error", validationSQL); // TODO messaggio
 				changeIsValid = false;
 			}
 		}
@@ -2589,7 +2612,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
     exportButton = ButtonFactory.createNamedButton("Export", false, true);        
     exportButton.setId("Export");
     exportButton.setEnabled(false);       
-    exportButton.addEventListener(Events.ON_CLICK, new XlsExportAction());
+    exportButton.addEventListener(Events.ON_CLICK, new XlsxExportAction());
 
     confirmPanel.addComponentsLeft(exportButton);
 	}
@@ -2601,22 +2624,48 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 		
 		exportButton.setEnabled(contentPanel.getRowCount() > 0);		
 	}
-	
-	private class XlsExportAction implements EventListener<Event>
+
+	/**
+	 * Return (if exists) the editor with the name
+	 * @param columnName
+	 * @return editor
+	 */
+	public WEditor getEditor(String columnName) {
+		for (WEditor editor : editors) {
+			if (editor.getGridField() != null && editor.getGridField().getColumnName().equals(columnName))
+				return editor;
+		}
+		return null;
+	}
+
+	/**
+	 * Return (if exists) the index of the column in the grid
+	 * @param columnName
+	 * @return index of the column
+	 */
+	public int getColumnIndex(String columnName) {
+		for (int i = 0; i < contentPanel.getColumnCount(); i++) {
+			if (p_layout[i].getGridField() != null && p_layout[i].getGridField().getColumnName().equals(columnName))
+				return i;
+		}
+		return -1;
+	}
+
+	private class XlsxExportAction implements EventListener<Event>
 	{		
 		@Override
 		public void onEvent(Event evt) throws Exception
 		{
 			if(evt.getTarget() == exportButton)
 			{
-				XlsExporter exporter = new XlsExporter();
+				XlsxExporter exporter = new XlsxExporter();
 				
 				exporter.doExport();
 			}
 		}
 	}
 	
-	private class XlsExporter extends AbstractExcelExporter
+	private class XlsxExporter extends AbstractXLSXExporter
 	{
 		private ResultSet m_rs = null;
 		private int rowCount = -1;
@@ -2628,7 +2677,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 			
 			String dataSql = buildDataSQL(0, 0);
 			
-			File file = File.createTempFile(infoWindow.get_Translation("Name")+"_", ".xls");
+			File file = File.createTempFile(infoWindow.get_Translation("Name")+"_", ".xlsx");
 			
 			testCount();
 			
@@ -2644,7 +2693,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 				{
 					String trxName = Trx.createTrxName("InfoPanelLoad:");
 					trx  = Trx.get(trxName, true);
-					trx.setDisplayName(getClass().getName()+"_exportXls");
+					trx.setDisplayName(getClass().getName()+"_exportXlsx");
 					pstmt = DB.prepareStatement(dataSql, trxName);
 					setParameters (pstmt, false);	//	no count
 
@@ -2666,8 +2715,8 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 					currentRow = -1;
 				}
 				
-				AMedia media = new AMedia(file.getName(), null, Medias.EXCEL_MIME_TYPE, file, true);
-				IMediaView view = Extensions.getMediaView(Medias.EXCEL_MIME_TYPE, Medias.EXCEL_FILE_EXT, ClientInfo.isMobile());
+				AMedia media = new AMedia(file.getName(), null, Medias.EXCEL_XML_MIME_TYPE, file, true);
+				IMediaView view = Extensions.getMediaView(Medias.EXCEL_XML_MIME_TYPE, Medias.EXCEL_XML_FILE_EXT, ClientInfo.isMobile());
 				Map<MAuthorizationAccount, IUploadService> uploadServicesMap = MAuthorizationAccount.getUserUploadServices();
 				if (view != null || uploadServicesMap.size() > 0) {				
 					WMediaOptions options = new WMediaOptions(media, view != null ? () -> {

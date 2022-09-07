@@ -10,6 +10,10 @@
 	background-image: none; background-color: #FFFFFF;
 }
 
+.dashboard-widget > .z-panel-body {
+	height: 100%;
+}
+
 .z-panel {
 	border-radius: 5px;
 	border: 1px solid #d8d8d8;
@@ -32,7 +36,7 @@
 .z-panel-head .z-panel-header {
 	padding: 0 0 2px 0;
 	color: #262626; 
-	background: #F4F4F4;
+	background: white;
 	font-weight: 300;
 	font-size: 13px;
 }	
@@ -40,7 +44,7 @@
 .z-caption .z-caption-content {
 	padding: 1px 1px 1px 6px;
 	color: #262626; 
-	font-weight: 300;
+	font-weight: 500;
 	font-size: 13px;
 	cursor: move;
 }
@@ -66,6 +70,10 @@
 
 .dashboard-widget.dashboard-widget-max > .z-panel-body > .z-panelchildren {
 	overflow: auto;
+}
+
+.dashboard-widget > .z-panel-body > .z-panelchildren {
+	height: 100% !important;
 }
 
 .dashboard-report-iframe {
@@ -208,8 +216,26 @@
 	width: 100%;
 }
 
+@media screen and (min-width: 768px) {
+	.dashboard-row .chart-gadget {
+		max-height: 300px; 
+	}
+}
+
+@media screen and (max-width: 767px) {
+	.dashboard-row .chart-gadget {
+		max-height: 150px; 
+	}
+}
+
 .dashboard-widget.dashboard-widget-max .chart-gadget {
 	height: 100% !important; 
+}
+
+.statusline-gadget {
+	display: flex;
+ 	justify-content: center;
+ 	align-items: center;
 }
 
 .help-content
@@ -267,3 +293,11 @@
   vertical-align: middle;
 }
 <%-- User Favorite Dashboard Panel End --%>
+
+.z-anchorchildren .z-hlayout {
+	white-space: normal;
+}
+
+.dashboard-row {
+	padding-bottom: 5px;
+}

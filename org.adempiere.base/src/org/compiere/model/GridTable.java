@@ -426,6 +426,13 @@ public class GridTable extends AbstractTableModel
 		{
 			m_SQL += " ORDER BY " + m_orderClause;
 		}
+		
+		//IDEMPIERE-5193 Add Limit to Query
+		if(m_maxRows > 0 && DB.getDatabase().isPagingSupported())
+		{
+			m_SQL = DB.getDatabase().addPagingSQL(m_SQL, 1, m_maxRows);
+		}
+		
 		//
 		if (log.isLoggable(Level.FINE))
 			log.fine(m_SQL_Count);
@@ -582,7 +589,7 @@ public class GridTable extends AbstractTableModel
 
 	/**
 	 *  Get all Fields
-	 *  @return GridFields
+	 *  @return GridField[]
 	 */
 	public GridField[] getFields ()
 	{
@@ -592,8 +599,8 @@ public class GridTable extends AbstractTableModel
 	}   //  getField
 	
 	/**************************************************************************
-	 *	Open Database.
-	 *  if already opened, data is refreshed
+	 *	Open connection to db and load data from table.
+	 *  If already opened, data is refreshed
 	 *	@param maxRows maximum number of rows or 0 for all
 	 *	@return true if success
 	 */
@@ -703,7 +710,7 @@ public class GridTable extends AbstractTableModel
 
 	/**
 	 *  Is Loading
-	 *  @return true if loading
+	 *  @return true if loading is in progress
 	 */
 	public boolean isLoading()
 	{
@@ -1077,7 +1084,7 @@ public class GridTable extends AbstractTableModel
 
 
 	/**************************************************************************
-	 * 	Get Value in Resultset
+	 * 	Get Value at row and column
 	 *  @param row row
 	 *  @param col col
 	 *  @return Object of that row/column
@@ -1107,6 +1114,10 @@ public class GridTable extends AbstractTableModel
 		return rowData[col];
 	}	//	getValueAt
 
+	/**
+	 * wait for loading of row
+	 * @param row
+	 */
 	public void waitLoadingForRow(int row) {
 		//	need to wait for data read into buffer
 		int loops = 0;
@@ -2529,6 +2540,54 @@ public class GridTable extends AbstractTableModel
 		return sb.toString();
 	}	//	getMandatory
 
+	/**
+	 * 
+	 * @return true if need save and all mandatory field has value
+	 */
+	public boolean isNeedSaveAndMandatoryFill() {
+		if (!m_open)
+		{
+			return false;
+		}
+		//	no need - not changed - row not positioned - no Value changed
+		if (m_rowChanged == -1)
+		{
+			return false;
+		}
+		//  Value not changed
+		if (m_rowData == null)
+		{
+			return false;
+		}
+
+		if (m_readOnly)
+		{
+			return false;
+		}
+
+		//	row not positioned - no Value changed
+		if (m_rowChanged == -1)
+		{
+			if (m_newRow != -1)     //  new row and nothing changed - might be OK
+				m_rowChanged = m_newRow;
+			else
+			{
+				return false;
+			}
+		}
+		
+		//	get updated row data
+		Object[] rowData = getDataAtRow(m_rowChanged);
+
+		//	Check Mandatory
+		String missingColumns = getMandatory(rowData);
+		if (missingColumns.length() != 0) {
+			return false;
+		}
+		
+		return true;
+	}
+	
 	/*************************************************************************/
 
 	/**	LOB Info				*/
@@ -2832,7 +2891,7 @@ public class GridTable extends AbstractTableModel
 
 	
 	/**************************************************************************
-	 *	Ignore changes
+	 *	Ignore/Undo changes
 	 */
 	public void dataIgnore()
 	{
@@ -3012,13 +3071,13 @@ public class GridTable extends AbstractTableModel
 		close(false);
 		if (retainedWhere != null)
 		{
-			// String whereClause = m_whereClause;
 			if (m_whereClause != null && m_whereClause.trim().length() > 0)
 			{
-				m_whereClause = "((" + m_whereClause + ") OR (" + retainedWhere + ")) ";
+				StringBuilder orRetainedWhere = new StringBuilder(") OR (").append(retainedWhere).append(")) ");
+				if (! m_whereClause.contains(orRetainedWhere.toString()))
+					m_whereClause = "((" + m_whereClause + orRetainedWhere.toString();
 			}
 			open(m_maxRows);
-			// m_whereClause = whereClause;
 		}
 		else
 		{
@@ -3072,6 +3131,13 @@ public class GridTable extends AbstractTableModel
 		return true;
 	}	//	dataRequery
 
+	/**
+	 * 
+	 * @param whereClause
+	 * @param onlyCurrentRows
+	 * @param onlyCurrentDays
+	 * @return true if success
+	 */
 	public boolean dataRequery (String whereClause, boolean onlyCurrentRows, int onlyCurrentDays)
 	{
 		return dataRequery (whereClause, onlyCurrentRows, onlyCurrentDays, true);
@@ -3507,6 +3573,10 @@ public class GridTable extends AbstractTableModel
 			.append(",Tab=").append(m_TabNo).append("]").toString();
 	}   //  toString
 
+	/**
+	 * 
+	 * @return new row added
+	 */
 	public int getNewRow()
 	{
 		return m_newRow;
@@ -3557,7 +3627,7 @@ public class GridTable extends AbstractTableModel
 			ResultSet rs = null;			
 			try
 			{
-				pstmt = DB.prepareStatement(m_SQL_Count, null);
+				pstmt = DB.prepareStatement(m_SQL_Count, get_TrxName());
 				setParameter (pstmt, true);
 				int timeout = MSysConfig.getIntValue(MSysConfig.GRIDTABLE_LOAD_TIMEOUT_IN_SECONDS, DEFAULT_GRIDTABLE_LOAD_TIMEOUT_IN_SECONDS, Env.getAD_Client_ID(Env.getCtx()));
 				if (timeout > 0)
@@ -3591,12 +3661,15 @@ public class GridTable extends AbstractTableModel
 		}	//	open
 
 		private void openResultSet() {
+			String trxName = get_TrxName();
 			//postgresql need trx to use cursor based resultset
 			//https://jdbc.postgresql.org/documentation/head/query.html#query-with-cursor
-			String trxName = m_virtual ? Trx.createTrxName("Loader") : null;
-			trx  = trxName != null ? Trx.get(trxName, true) : null;
-			if (trx != null)
-				trx.setDisplayName(getClass().getName()+"_openResultSet");
+			if (trxName == null) {
+				trxName = m_virtual ? Trx.createTrxName("Loader") : null;
+				trx  = trxName != null ? Trx.get(trxName, true) : null;
+				if (trx != null)
+					trx.setDisplayName(getClass().getName()+"_openResultSet");
+			}
 			//	open Statement (closed by Loader.close)
 			try
 			{
@@ -3630,7 +3703,10 @@ public class GridTable extends AbstractTableModel
 			m_rs = null;
 			m_pstmt = null;
 			if (trx != null)
+			{
 				trx.close();
+				trx = null;
+			}
 		}	//	close
 
 		/**
@@ -3793,7 +3869,11 @@ public class GridTable extends AbstractTableModel
 		}
 	}	//	setFieldVFormat	
 
-	// verify if the current record has changed
+	/**
+	 * verify if the record at row has changed
+	 * @param row
+	 * @return true if has changes
+	 */
 	public boolean hasChanged(int row) {
 		// not so aggressive (it can has still concurrency problems)
 		// compare Updated, IsProcessed
@@ -4008,6 +4088,11 @@ public class GridTable extends AbstractTableModel
 		return bChanged;	
 	}
 
+	/**
+	 * Load PO for row
+	 * @param row
+	 * @return PO
+	 */
 	public PO getPO(int row) {
 		MTable table = MTable.get (m_ctx, m_AD_Table_ID);
 		PO po = null;
@@ -4019,15 +4104,28 @@ public class GridTable extends AbstractTableModel
 		return po;
 	}
 
+	/**
+	 * 
+	 * @param importing import mode
+	 * @param trxName optional trx name
+	 */
 	public void setImportingMode(boolean importing, String trxName) {
 		m_importing = importing;
 		m_trxName = trxName;
 	}
 
+	/**
+	 * 
+	 * @return true if it is in import mode
+	 */
 	public boolean isImporting() {
 		return m_importing;
 	}
 	
+	/**
+	 * 
+	 * @return trx name
+	 */
 	public String get_TrxName() {
 		return m_trxName;
 	}
@@ -4040,6 +4138,10 @@ public class GridTable extends AbstractTableModel
 		m_lastSortedAscending = true;
 	}
 
+	/**
+	 * 
+	 * @return index of primary key column
+	 */
 	public int getKeyColumnIndex() {
 		return m_indexKeyColumn;
 	}

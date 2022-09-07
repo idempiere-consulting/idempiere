@@ -79,7 +79,7 @@ public class TimeUtil
 		if (month < 1 || month > 12)
 			throw new IllegalArgumentException("Invalid Month: " + month);
 		if (day < 1 || day > 31)
-			throw new IllegalArgumentException("Invalid Day: " + month);
+			throw new IllegalArgumentException("Invalid Day: " + day);
 		GregorianCalendar cal = new GregorianCalendar (year, month-1, day);
 		return new Timestamp (cal.getTimeInMillis());
 	}	//	getDay
@@ -543,17 +543,16 @@ public class TimeUtil
 		long hours = elapsedMS%24;
 		long days = elapsedMS / 24;
 		//
-		if (days != 0)
-			sb.append(days).append("'");
+		sb.append(days).append("'");
 		//	hh
 		if (hours != 0)
 			sb.append(get2digits(hours)).append(":");
-		else if (days != 0)
+		else
 			sb.append("00:");
 		//	mm
 		if (minutes != 0)
 			sb.append(get2digits(minutes)).append(":");
-		else if (hours != 0 || days != 0)
+		else
 			sb.append("00:");
 		//	ss
 		sb.append(get2digits(seconds))
