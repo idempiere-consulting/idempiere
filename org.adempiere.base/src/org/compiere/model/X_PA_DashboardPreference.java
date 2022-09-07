@@ -24,7 +24,7 @@ import org.compiere.util.Env;
 
 /** Generated Model for PA_DashboardPreference
  *  @author iDempiere (generated) 
- *  @version Release 9 - $Id$ */
+ *  @version Release 10 - $Id$ */
 @org.adempiere.base.Model(table="PA_DashboardPreference")
 public class X_PA_DashboardPreference extends PO implements I_PA_DashboardPreference, I_Persistent 
 {
@@ -32,12 +32,31 @@ public class X_PA_DashboardPreference extends PO implements I_PA_DashboardPrefer
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20211224L;
+	private static final long serialVersionUID = 20220823L;
 
     /** Standard Constructor */
     public X_PA_DashboardPreference (Properties ctx, int PA_DashboardPreference_ID, String trxName)
     {
       super (ctx, PA_DashboardPreference_ID, trxName);
+      /** if (PA_DashboardPreference_ID == 0)
+        {
+			setAD_Role_ID (0);
+// 0
+			setAD_User_ID (0);
+// 0
+			setIsCollapsedByDefault (false);
+// N
+			setIsShowInDashboard (true);
+// 'Y'
+			setPA_DashboardContent_ID (0);
+			setPA_DashboardPreference_ID (0);
+        } */
+    }
+
+    /** Standard Constructor */
+    public X_PA_DashboardPreference (Properties ctx, int PA_DashboardPreference_ID, String trxName, String ... virtualColumns)
+    {
+      super (ctx, PA_DashboardPreference_ID, trxName, virtualColumns);
       /** if (PA_DashboardPreference_ID == 0)
         {
 			setAD_Role_ID (0);
@@ -151,6 +170,25 @@ public class X_PA_DashboardPreference extends PO implements I_PA_DashboardPrefer
 	public int getColumnNo()
 	{
 		Integer ii = (Integer)get_Value(COLUMNNAME_ColumnNo);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	/** Set Flex Grow.
+		@param FlexGrow This defines the ability for a flex item to grow if necessary. It accepts a unitless value that serves as a proportion. It dictates what amount of the available space inside the flex container the item should take up.
+	*/
+	public void setFlexGrow (int FlexGrow)
+	{
+		set_Value (COLUMNNAME_FlexGrow, Integer.valueOf(FlexGrow));
+	}
+
+	/** Get Flex Grow.
+		@return This defines the ability for a flex item to grow if necessary. It accepts a unitless value that serves as a proportion. It dictates what amount of the available space inside the flex container the item should take up.
+	  */
+	public int getFlexGrow()
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_FlexGrow);
 		if (ii == null)
 			 return 0;
 		return ii.intValue();

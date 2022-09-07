@@ -23,6 +23,7 @@ import org.adempiere.webui.LayoutUtils;
 import org.adempiere.webui.component.Window;
 import org.adempiere.webui.event.DialogEvents;
 import org.adempiere.webui.util.ZKUpdateUtil;
+import org.compiere.model.MPInstance;
 import org.compiere.print.MPrintFormat;
 import org.compiere.process.ProcessInfo;
 import org.compiere.util.CLogger;
@@ -66,6 +67,46 @@ public class ProcessModalDialog extends AbstractProcessDialog implements EventLi
 	public ProcessModalDialog(int WindowNo, ProcessInfo pi, boolean autoStart)
 	{
 		this(null, WindowNo, pi, autoStart);
+	}
+	
+	/**
+	 * @param listener
+	 * @param WindowNo
+	 * @param pi
+	 */
+	public ProcessModalDialog(EventListener<Event> listener, int WindowNo, ProcessInfo pi)
+	{
+		this(listener, WindowNo, true, pi);
+	}
+
+	/**
+	 * @param listener
+	 * @param WindowNo
+	 * @param isReRun
+	 * @param pi
+	 */
+	public ProcessModalDialog(EventListener<Event> listener, int WindowNo, boolean isReRun, ProcessInfo pi)
+	{
+		this(WindowNo, pi, false);
+
+		if(isReRun) {
+			MPInstance instance = getLastRun();
+			if(instance != null) {
+				loadSavedParams(instance);
+				chooseSaveParameter(fSavedName.getRawText(), true);
+			}
+		}
+		else {
+			if(pi != null) {
+				getParameterPanel().loadParametersFromProcessInfo(pi);
+			}
+		}
+
+		if (listener != null) 
+		{
+			addEventListener(ON_WINDOW_CLOSE, listener);
+			addEventListener(ON_BEFORE_RUN_PROCESS, listener);
+		}
 	}
 	
 	/**

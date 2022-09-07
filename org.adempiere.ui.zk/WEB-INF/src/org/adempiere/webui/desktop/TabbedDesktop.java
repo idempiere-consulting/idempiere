@@ -31,7 +31,7 @@ import org.adempiere.webui.panel.IHelpContext;
 import org.adempiere.webui.panel.InfoPanel;
 import org.adempiere.webui.part.WindowContainer;
 import org.adempiere.webui.util.ZKUpdateUtil;
-import org.adempiere.webui.window.FDialog;
+import org.adempiere.webui.window.Dialog;
 import org.adempiere.webui.window.WTask;
 import org.compiere.model.MInfoWindow;
 import org.compiere.model.MQuery;
@@ -122,7 +122,7 @@ public abstract class TabbedDesktop extends AbstractDesktop {
 			windowContainer.addWindow(tabPanel, title, true, DecorateInfo.get(MInfoWindow.get(infoId, null)));
 			infoPanel.focus();
 		} else {
-			FDialog.error(0, "NotValid");
+			Dialog.error(0, "NotValid");
 		}
 	}
 	
@@ -282,6 +282,8 @@ public abstract class TabbedDesktop extends AbstractDesktop {
     	preOpenNewTab();
     	if (Window.INSERT_NEXT.equals(window.getAttribute(Window.INSERT_POSITION_KEY)))
     		windowContainer.insertAfter(windowContainer.getSelectedTab(), tabPanel, title, true, true, null);
+    	else if(Window.REPLACE.equals(window.getAttribute(Window.INSERT_POSITION_KEY)))
+    		windowContainer.replace(windowContainer.getSelectedTab(), window, title);
     	else
     		windowContainer.addWindow(tabPanel, title, true, null);
     	if (window instanceof IHelpContext)

@@ -17,6 +17,7 @@
 
 package org.adempiere.webui.window;
 
+import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 
@@ -45,12 +46,14 @@ import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 
 /**
+ * @deprecated  Many methods in this class receive parameters that are never used.
+ * As of iDempiere 10, use the {@link Dialog} class instead.
  *
  * @author  <a href="mailto:agramdass@gmail.com">Ashley G Ramdass</a>
  * @date    Feb 25, 2007
  * @version $Revision: 0.10 $
  */
-
+@Deprecated(since="10", forRemoval=true)
 public class FDialog
 {
 	/**	Logger			*/
@@ -315,7 +318,11 @@ public class FDialog
 		if (adMessage != null && !adMessage.equals(""))
 			out.append(Msg.getMsg(Env.getCtx(), adMessage));
 		if (msg != null && msg.length() > 0)
-			out.append("\n").append(msg);
+		{
+			if (out.length() > 0)
+				out.append("\n");
+			out.append(msg);
+		}
 		String s = out.toString().replace("\n", "<br>");
 
     	Callback<Integer> msgCallback = null;
@@ -419,6 +426,30 @@ public class FDialog
         Messagebox.showDialog(s, Util.isEmpty(title) ? AEnv.getDialogHeader(Env.getCtx(), windowNo) : title,
         		Messagebox.OK | Messagebox.INPUT, Messagebox.QUESTION, weditor, msgCallback, (msgCallback == null));
     }
+    
+    /**
+     * Confirmation dialog before deleting the records. 
+     * @param windowNo
+     * @param weditor
+     * @param adMessage
+     * @param adMessageArgs
+     * @param title
+     * @param correctInput
+     * @param callback
+     */
+    public static void askForInputTextConfirmation(int windowNo, WEditor weditor, String adMessage, Object[] adMessageArgs, String title, final Callback<Map.Entry<Boolean, String>> callback)
+    {
+    	Callback<Map.Entry<Boolean, String>> msgCallback = null;
+		msgCallback = new Callback<Map.Entry<Boolean, String>>() {
+			@Override
+			public void onCallback(Map.Entry<Boolean, String> result) {
+				callback.onCallback(result);
+			}
+		};
+    	String s = Msg.getMsg(Env.getCtx(), adMessage, adMessageArgs).replace("\n", "<br>");
+        Messagebox.showDialog(s, Util.isEmpty(title) ? AEnv.getDialogHeader(Env.getCtx(), windowNo) : title,
+        		Messagebox.OK | Messagebox.CANCEL | Messagebox.INPUT, Messagebox.QUESTION, weditor, msgCallback, (msgCallback == null));
+    }
 
     public static void askForInput(int windowNo, Component comp, String adMessage, final Callback<String> callback) {
     	askForInput(windowNo, comp, adMessage, "", callback);
@@ -439,6 +470,23 @@ public class FDialog
     	String s = Msg.getMsg(Env.getCtx(), adMessage).replace("\n", "<br>");
         Messagebox.showDialog(s, Util.isEmpty(title) ? AEnv.getDialogHeader(Env.getCtx(), windowNo) : title, 
         		Messagebox.OK | Messagebox.INPUT, Messagebox.QUESTION, msgCallback, (msgCallback == null));
+    }
+    
+    public static void askForInputWithCancel(int windowNo, WEditor weditor, String adMessage, String title, final Callback<Map.Entry<Boolean, Object>> callback)
+    {
+    	Callback<Map.Entry<Boolean, Object>> msgCallback = null;
+    	if (callback != null) 
+    	{
+    		msgCallback = new Callback<Map.Entry<Boolean, Object>>() {
+				@Override
+				public void onCallback(Map.Entry<Boolean, Object> result) {
+					callback.onCallback(result);
+				}
+			};
+    	}
+    	String s = Msg.getMsg(Env.getCtx(), adMessage).replace("\n", "<br>");
+        Messagebox.showDialog(s, Util.isEmpty(title) ? AEnv.getDialogHeader(Env.getCtx(), windowNo) : title, 
+        		Messagebox.OK | Messagebox.CANCEL | Messagebox.INPUT, Messagebox.QUESTION, weditor, true, msgCallback, (msgCallback == null));
     }
 
     /**************************************************************************
@@ -579,7 +627,11 @@ public class FDialog
 		if (adMessage != null && !adMessage.equals(""))
 			out.append(Msg.getMsg(Env.getCtx(), adMessage));
 		if (msg != null && msg.length() > 0)
-			out.append("\n").append(msg);
+		{
+			if (out.length() > 0)
+				out.append("\n");
+			out.append(msg);
+		}
 		String s = out.toString().replace("\n", "<br>");
 
         int response = Messagebox.showDialog(s, title, Messagebox.OK | Messagebox.CANCEL, Messagebox.QUESTION, msgCallback, (msgCallback == null));

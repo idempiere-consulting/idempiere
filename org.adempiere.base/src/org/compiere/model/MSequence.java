@@ -184,7 +184,7 @@ public class MSequence extends X_AD_Sequence
 		{
 			try
 			{
-				conn = DB.getConnectionID();
+				conn = DB.getConnection(false);
 				//	Error
 				if (conn == null)
 					return -1;
@@ -388,7 +388,7 @@ public class MSequence extends X_AD_Sequence
 			if (trx != null)
 				conn = trx.getConnection();
 			else
-				conn = DB.getConnectionID();
+				conn = DB.getConnection(false);
 			//	Error
 			if (conn == null)
 				return null;
@@ -1195,6 +1195,8 @@ public class MSequence extends X_AD_Sequence
 			"AD_REPLICATION_LOG",
 			"AD_SCHEDULERLOG",
 			"AD_SESSION",
+			"AD_USERPREFERENCE",
+			"AD_WLISTBOX_CUSTOMIZATION",
 			"AD_WORKFLOWPROCESSORLOG",
 			"CM_WEBACCESSLOG",
 			"C_ACCTPROCESSORLOG",

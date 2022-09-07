@@ -67,7 +67,7 @@ import org.adempiere.webui.part.ITabOnSelectHandler;
 import org.adempiere.webui.part.WindowContainer;
 import org.adempiere.webui.session.SessionManager;
 import org.adempiere.webui.util.ZKUpdateUtil;
-import org.adempiere.webui.window.FDialog;
+import org.adempiere.webui.window.Dialog;
 import org.compiere.minigrid.ColumnInfo;
 import org.compiere.minigrid.IDColumn;
 import org.compiere.model.GridField;
@@ -618,8 +618,10 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
         String sql =contentPanel.prepareTable(layout, from,
                 where,p_multipleSelection,
                 getTableName(),false);
-	if (infoWindow != null)	
+        if (infoWindow != null)	
         	contentPanel.setwListBoxName("AD_InfoWindow_UU|"+ infoWindow.getAD_InfoWindow_UU() );
+        else
+	    	contentPanel.setwListBoxName("AD_InfoPanel|"+ from );
         p_layout = contentPanel.getLayout();
 		m_sqlMain = sql;
 		m_sqlCount = "SELECT COUNT(*) FROM " + from + " WHERE " + where;
@@ -1086,12 +1088,12 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 			{
 				if (log.isLoggable(Level.INFO))
 					log.log(Level.INFO, dataSql, e);
-				FDialog.error(p_WindowNo, INFO_QUERY_TIME_OUT_ERROR);
+				Dialog.error(p_WindowNo, INFO_QUERY_TIME_OUT_ERROR);
 			}
 			else
 			{
 				log.log(Level.SEVERE, dataSql, e);
-				FDialog.error(p_WindowNo, "DBExecuteError", e.getMessage());
+				Dialog.error(p_WindowNo, "DBExecuteError", e.getMessage());
 			}
 		}
 
@@ -1375,12 +1377,12 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 			{
 				if (log.isLoggable(Level.INFO))
 					log.log(Level.INFO, countSql, e);
-				FDialog.error(p_WindowNo, INFO_QUERY_TIME_OUT_ERROR);
+				Dialog.error(p_WindowNo, INFO_QUERY_TIME_OUT_ERROR);
 			}
 			else
 			{
 				log.log(Level.SEVERE, countSql, e);
-				FDialog.error(p_WindowNo, "DBExecuteError", e.getMessage());
+				Dialog.error(p_WindowNo, "DBExecuteError", e.getMessage());
 			}
 			m_count = -2;
 		}
@@ -2763,7 +2765,7 @@ public abstract class InfoPanel extends Window implements EventListener<Event>, 
 			if (SessionManager.getSessionApplication() != null &&
 				SessionManager.getSessionApplication().getKeylistener() != null)
 				SessionManager.getSessionApplication().getKeylistener().removeEventListener(Events.ON_CTRL_KEY, this);
-			if (infoWindow != null && getFirstChild() != null)
+			if (getFirstChild() != null)
 				saveWlistBoxColumnWidth(getFirstChild());
 		} catch (Exception e){
 			log.log(Level.WARNING, e.getMessage(), e);
