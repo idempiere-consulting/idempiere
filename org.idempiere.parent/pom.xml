@@ -181,7 +181,6 @@
 									<action>
 										<ignore></ignore>
 									</action>
-									<configuration><skip>true</skip></configuration>
 								</pluginExecution>
 								<pluginExecution>
 									<pluginExecutionFilter>
