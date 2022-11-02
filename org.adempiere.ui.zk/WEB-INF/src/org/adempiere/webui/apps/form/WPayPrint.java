@@ -349,7 +349,6 @@ public class WPayPrint extends PayPrint implements IFormController, EventListene
 			return;
 		String PaymentRule = pp.getValue();
 
-		log.info("PaymentRule=" + PaymentRule);
 		fNoPayments.setText(" ");
 
 		String msg = loadPaymentRuleInfo(m_C_PaySelection_ID, PaymentRule);
@@ -414,7 +413,6 @@ public class WPayPrint extends PayPrint implements IFormController, EventListene
 		if (fPaymentRule.getSelectedItem() == null)
 			return;
 		String PaymentRule = fPaymentRule.getSelectedItem().toValueNamePair().getValue();
-		log.info(PaymentRule);
 		if (!getChecks(PaymentRule))
 			return;
 
@@ -529,7 +527,7 @@ public class WPayPrint extends PayPrint implements IFormController, EventListene
 			MPaySelectionCheck.confirmPrint(m_checks[i], m_batch);
 
 			//	ReportCtrl will check BankAccountDoc for PrintFormat
-			ReportEngine re = ReportEngine.get(Env.getCtx(), ReportEngine.CHECK, check.get_ID());
+			ReportEngine re = ReportEngine.get(Env.getCtx(), ReportEngine.CHECK, check.get_ID(), m_WindowNo);
 			try
 			{
 				MPrintFormat format = re.getPrintFormat();
@@ -602,7 +600,7 @@ public class WPayPrint extends PayPrint implements IFormController, EventListene
 					for (int i = 0; i < m_checks.length; i++)
 					{
 						MPaySelectionCheck check = m_checks[i];
-						ReportEngine re = ReportEngine.get(Env.getCtx(), ReportEngine.REMITTANCE, check.get_ID());
+						ReportEngine re = ReportEngine.get(Env.getCtx(), ReportEngine.REMITTANCE, check.get_ID(), m_WindowNo);
 						try
 						{
 							MPrintFormat format = re.getPrintFormat();
