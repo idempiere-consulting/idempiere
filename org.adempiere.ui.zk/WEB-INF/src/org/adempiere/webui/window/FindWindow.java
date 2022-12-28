@@ -1224,44 +1224,44 @@ public class FindWindow extends Window implements EventListener<Event>, ValueCha
 	    	{
 	    		cellQueryFrom.setAttribute("value", value); // Elaine 2009/03/16 - set attribute value
 	    		//Attribute Values Parsing
-			if(tableName.equals(MAttribute.COLUMNNAME_M_Attribute_ID))
-			{
-	    			cellQueryFrom.appendChild(parseAttributeString( Integer.valueOf(columnName), value, listItem, false));
-			}
-			else
-			{
-				editorFrom = parseString(getTargetMField(columnName), value, listItem, false);
-				if (editorFrom != null)
-					cellQueryFrom.appendChild(editorFrom.getComponent());
-			}
+				if(tableName.equals(MAttribute.COLUMNNAME_M_Attribute_ID))
+				{
+		    			cellQueryFrom.appendChild(parseAttributeString( Integer.valueOf(columnName), value, listItem, false));
+				}
+				else
+				{
+					editorFrom = parseString(getTargetMField(columnName), value, listItem, false);
+					if (editorFrom != null)
+						cellQueryFrom.appendChild(editorFrom.getComponent());
+				}
 	    	}
 	    	// QueryTo
-		WEditor editorTo = null;
+	    	WEditor editorTo = null;
 	    	String value2 = fields.length > INDEX_VALUE2 ? fields[INDEX_VALUE2] : "";
 	    	if(value2.length() > 0)
 	    	{
 	    		cellQueryTo.setAttribute("value", value2); // Elaine 2009/03/16 - set attribute value
 	    		// Attribute Parsing
 	    		if(tableName.equals(MAttribute.COLUMNNAME_M_Attribute_ID))
-			{
+	    		{
 	    			cellQueryTo.appendChild(parseAttributeString( Integer.valueOf(columnName), value2, listItem, true));
-			}
+	    		}
 		    	else
-			{
-				editorTo = parseString(getTargetMField(columnName), value2, listItem, true);
-				if (editorTo != null)
 				{
-					if (editorFrom != null && editorFrom.getGridField() != null && DisplayType.isDate(editorFrom.getGridField().getDisplayType()))
+					editorTo = parseString(getTargetMField(columnName), value2, listItem, true);
+					if (editorTo != null)
 					{
-						Div div = createDateRangeWrapper(editorFrom, editorTo);
-						cellQueryTo.appendChild(div);
-					}
-					else
-					{
-						cellQueryTo.appendChild(editorTo.getComponent());
+						if (editorFrom != null && editorFrom.getGridField() != null && DisplayType.isDate(editorFrom.getGridField().getDisplayType()))
+						{
+							Div div = createDateRangeWrapper(editorFrom, editorTo);
+							cellQueryTo.appendChild(div);
+						}
+						else
+						{
+							cellQueryTo.appendChild(editorTo.getComponent());
+						}
 					}
 				}
-			}
 	    	}
 	    	
 	    	// AndOr
@@ -1593,18 +1593,24 @@ public class FindWindow extends Window implements EventListener<Event>, ValueCha
             m_sEditorsFlag.add(editorFlag);
             editorFlag.setMode("toggle");
             div.appendChild(editorFlag);
-		div.appendChild(fieldEditorTo);
-		DateRangeButton drb = new DateRangeButton(editor, editorTo);
-		div.appendChild(drb);
-        	fieldEditorTo.setVisible(false);
-		drb.setVisible(false);
+			div.appendChild(fieldEditorTo);
+			DateRangeButton drb = null;
+			if (editor.getGridField() != null && DisplayType.isDate(editor.getGridField().getDisplayType()))
+			{
+				drb = new DateRangeButton(editor, editorTo);
+				div.appendChild(drb);
+				drb.setVisible(false);
+			}
+        	fieldEditorTo.setVisible(false);        	
         	final Component editorRef = fieldEditorTo;
+        	final DateRangeButton drbRef = drb;
         	editorFlag.addEventListener(Events.ON_CHECK, new EventListener<Event>() {
 				@Override
 				public void onEvent(Event event) throws Exception {
 					ToolBarButton btn = (ToolBarButton) event.getTarget();
 					editorRef.setVisible(btn.isChecked());
-					drb.setVisible(editorRef.isVisible());
+					if (drbRef != null)
+						drbRef.setVisible(editorRef.isVisible());
 				}
 			});
             m_sEditorsTo.add(editorTo);
@@ -3276,8 +3282,20 @@ public class FindWindow extends Window implements EventListener<Event>, ValueCha
             if (winMain.getComponent().getSelectedIndex() == 1)
             {
 	            Component component = editor.getComponent();
-	            listcell = (ListCell)component.getParent();
-	            listcell.setAttribute("value", evt.getNewValue());
+	            Component parent = component.getParent();
+	            if(parent != null) {
+	            	if(parent instanceof ListCell) {
+	            		listcell = (ListCell) parent;
+	            		listcell.setAttribute("value", evt.getNewValue());
+	            	}
+	            	else {	// use case: Date To editor with Date Range Button
+	            		Component secondParent = parent.getParent();
+	            		if(secondParent instanceof ListCell) {
+		            		listcell = (ListCell) secondParent;
+		            		listcell.setAttribute("value", evt.getNewValue());
+		            	}
+	            	}
+	            }
 	            ctx = m_advanceCtx;
             }
             else
