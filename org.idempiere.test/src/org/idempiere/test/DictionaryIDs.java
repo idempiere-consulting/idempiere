@@ -34,6 +34,26 @@ public final class DictionaryIDs {
 	private DictionaryIDs() {
 	}
 
+	public enum A_Asset_Group {
+		EQUIPMENT(50007);
+
+		public final int id;
+
+		private A_Asset_Group(int id) {
+			this.id = id;
+		}
+	}
+
+	public enum A_Asset_Group_Acct {
+		EQUIPMENT_DOLLAR(200002);
+
+		public final int id;
+
+		private A_Asset_Group_Acct(int id) {
+			this.id = id;
+		}
+	}
+
 	public enum AD_Org {
 		HQ(11),
 		STORE_CENTRAL(12),
@@ -74,7 +94,17 @@ public final class DictionaryIDs {
 			this.id = id;
 		}
 	}
-	
+
+	public enum C_AcctSchema {
+		DOLLAR(101);
+
+		public final int id;
+
+		private C_AcctSchema(int id) {
+			this.id = id;
+		}
+	}
+
 	public enum C_BankAccount {
 		ACCOUNT_1234(100),
 		ACCOUNT_5678(101),
@@ -117,6 +147,16 @@ public final class DictionaryIDs {
 		}
 	}
 
+	public enum C_Calendar {
+		GARDENWORLD_CALENDAR(102);
+		
+		public final int id;
+		
+		private C_Calendar(int id) {
+			this.id = id;
+		}
+	}
+	
 	public enum C_Charge {
 		BANK(100),
 		COMMISSIONS(101),
@@ -341,6 +381,24 @@ public final class DictionaryIDs {
 		}
 	}
 	
+	public enum M_CostElement {
+		MATERIAL(100),
+		FREIGHT(101),
+		FIFO(102),
+		AVERAGE_PO(103),
+		AVERAGE_INVOICE(104),
+		LABOR(105),
+		BURDEN(50000),
+		OVERHEAD(50001),
+		OUTSIDE_PROCESSING(50002);
+
+		public final int id;
+		
+		private M_CostElement(int id) {
+			this.id = id;
+		}
+	}
+	
 	public enum M_DiscountSchema {
 		SALES_2001(100),
 		PURCHASE_2001(101),
@@ -412,7 +470,8 @@ public final class DictionaryIDs {
 		PATIOSET(145),
 		DOC(146),
 		TSHIRT_RL(147),
-		TSHIRT_GL(148);
+		TSHIRT_GL(148),
+		ASSET_VEHICLE(200001);
 		
 		public final int id;
 
@@ -482,6 +541,18 @@ public final class DictionaryIDs {
 		public final int id;
 
 		private M_Warehouse(int id) {
+			this.id = id;
+		}
+	}
+	
+	public enum R_RequestType {
+		REQUEST_FOR_QUOTATION(100),
+		SERVICE_REQUEST(101),
+		WARRANTY(102);
+		
+		public final int id;
+
+		private R_RequestType(int id) {
 			this.id = id;
 		}
 	}
