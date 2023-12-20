@@ -25,11 +25,13 @@ import org.compiere.model.MDistributionList;
 import org.compiere.model.MDistributionListLine;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
+import org.compiere.model.MProcessPara;
 import org.compiere.model.MProduct;
 import org.compiere.util.Env;
 
 /**
- *	Create Distribution List Order
+ *	Create Distribution List Order. <br/>
+ *  Note: feature not fully implemented and have been marked as inactive in application dictionary.
  *	
  *  @author Jorg Janke
  *  @version $Id: DistributionCreate.java,v 1.3 2006/07/30 00:51:01 jjanke Exp $
@@ -86,7 +88,7 @@ public class DistributionCreate extends SvrProcess
 			else if (name.equals("IsTest"))
 				p_IsTest = "Y".equals(para[i].getParameter());
 			else
-				log.log(Level.SEVERE, "Unknown Parameter: " + name);		
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), para[i]);
 		}
 		p_M_DistributionList_ID = getRecord_ID();
 	}	//	prepare

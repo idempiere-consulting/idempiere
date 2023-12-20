@@ -31,6 +31,7 @@ import org.adempiere.exceptions.AdempiereException;
 import org.compiere.model.MColumn;
 import org.compiere.model.MMenu;
 import org.compiere.model.MPInstance;
+import org.compiere.model.MProcessPara;
 import org.compiere.model.MTab;
 import org.compiere.model.MTable;
 import org.compiere.model.MWindow;
@@ -69,6 +70,9 @@ public class CreateWindowFromTable extends SvrProcess
 	/** Create Menu Record		*/
 	private boolean		p_isCreateMenu = false;
 	
+	/** Link Column	*/
+	private int		p_LinkColumn_ID = 0;
+	
 	/**
 	 *  Prepare - e.g., get Parameters.
 	 */
@@ -92,8 +96,10 @@ public class CreateWindowFromTable extends SvrProcess
 				p_TabLevel = para[i].getParameterAsInt();
 			else if (name.equals("IsCreateMenu"))
 				p_isCreateMenu = para[i].getParameterAsBoolean();
+			else if (name.equals("AD_Column_ID"))
+				p_LinkColumn_ID = para[i].getParameterAsInt();
 			else
-				log.log(Level.SEVERE, "Unknown Parameter: " + name);
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), para[i]);
 		}
 		p_AD_Table_ID = getRecord_ID();
 	}	//	prepare
@@ -143,18 +149,9 @@ public class CreateWindowFromTable extends SvrProcess
 				tabSeqNo = 10;
 			} else {
 				//If no new window but a detail tab
-				if (p_TabLevel > 0) {
-					boolean hasParentLinkColumn = false;
-					for (MColumn column : table.getColumns(false)) {
-						if (column.isParent()) {
-							hasParentLinkColumn = true;
-							break;
-						}
-					}
-					
-					if (!hasParentLinkColumn)
-						throw new AdempiereException(Msg.getMsg(getCtx(), "NoParentLink"));
-				}
+				if (p_TabLevel > 0 && p_LinkColumn_ID <= 0)
+					throw new AdempiereException(Msg.getMsg(getCtx(), "NoParentLink"));
+
 				window = new MWindow(getCtx(), p_AD_Window_ID, get_TrxName());
 
 				int maxTabLevel = -1;
@@ -176,10 +173,13 @@ public class CreateWindowFromTable extends SvrProcess
 			}
 
 			MTab tab = new MTab(window);
+			tab.setEntityType(entityType);
 			tab.setSeqNo(tabSeqNo);
 			tab.setName(table.getName());
 			tab.setAD_Table_ID(p_AD_Table_ID);
 			tab.setTabLevel(p_TabLevel);
+			if (p_TabLevel > 0 && p_LinkColumn_ID > 0)
+				tab.setAD_Column_ID(p_LinkColumn_ID);
 			tab.setIsSingleRow(true); //Default
 
 			//Set order by
@@ -202,9 +202,9 @@ public class CreateWindowFromTable extends SvrProcess
 					tab.get_Table_ID(), tab.getAD_Tab_ID());
 
 			//Create Fields
-			ProcessInfo processInfo = new ProcessInfo("", SystemIDs.PROCESS_AD_TAB_CREATEFIELDS, 0, tab.getAD_Tab_ID());
+			ProcessInfo processInfo = new ProcessInfo("", SystemIDs.PROCESS_AD_TAB_CREATEFIELDS, MTab.Table_ID, tab.getAD_Tab_ID(), tab.getAD_Tab_UU());
 
-			MPInstance instance = new MPInstance(getCtx(), SystemIDs.PROCESS_AD_TAB_CREATEFIELDS, 0);
+			MPInstance instance = new MPInstance(getCtx(), SystemIDs.PROCESS_AD_TAB_CREATEFIELDS, MTab.Table_ID, tab.getAD_Tab_ID(), tab.getAD_Tab_UU());
 			instance.saveEx();
 			processInfo.setAD_PInstance_ID(instance.getAD_PInstance_ID());
 

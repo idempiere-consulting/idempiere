@@ -24,6 +24,7 @@ import org.adempiere.exceptions.AdempiereException;
 import org.adempiere.exceptions.DBException;
 import org.compiere.model.MClient;
 import org.compiere.model.MColumn;
+import org.compiere.model.MProcessPara;
 import org.compiere.model.MTable;
 import org.compiere.model.PO;
 import org.compiere.model.Query;
@@ -51,11 +52,10 @@ public class TranslationDocSync extends SvrProcess
 		ProcessInfoParameter[] para = getParameter();
 		for (int i = 0; i < para.length; i++)
 		{
-			String name = para[i].getParameterName();
 			if (para[i].getParameter() == null)
 				;
 			else
-				log.log(Level.SEVERE, "Unknown Parameter: " + name);
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), para[i]);
 		}
 	}	//	prepare
 
@@ -104,9 +104,10 @@ public class TranslationDocSync extends SvrProcess
 			}
 		}
 		String trlTable = table.getTableName();
-		String baseTable = trlTable.substring(0, trlTable.length()-4);
-		
-		if (log.isLoggable(Level.CONFIG)) log.config(baseTable + ": " + columnNames);
+		String baseTableName = trlTable.substring(0, trlTable.length()-4);
+		MTable baseTable = MTable.get(getCtx(), baseTableName);
+
+		if (log.isLoggable(Level.CONFIG)) log.config(baseTableName + ": " + columnNames);
 
 	  try {
 		if (client.isMultiLingualDocument()) {
@@ -117,25 +118,25 @@ public class TranslationDocSync extends SvrProcess
 			} else {
 				// tenant language <> base language
 				// auto update translation for tenant language
-				StringBuilder sql = new StringBuilder("UPDATE ").append(trlTable).append(" SET (")
-						.append(columnNames).append(",IsTranslated) = (SELECT ").append(columnNames)
-						.append(",'Y' FROM ").append(baseTable).append(" b WHERE ").append(trlTable).append(".")
-						.append(baseTable).append("_ID=b.").append(baseTable).append("_ID) WHERE AD_Client_ID=")
+				StringBuilder sql = new StringBuilder("UPDATE ").append(trlTable)
+						.append(" SET (").append(columnNames).append(",IsTranslated) = (SELECT ").append(columnNames)
+						.append(",'Y' FROM ").append(baseTableName).append(" b WHERE ").append(trlTable).append(".")
+						.append(baseTable.getKeyColumns()[0]).append("=b.").append(baseTable.getKeyColumns()[0]).append(") WHERE AD_Client_ID=")
 						.append(getAD_Client_ID()).append(" AND AD_Language=").append(DB.TO_STRING(client.getAD_Language()));
 
 				int no = DB.executeUpdateEx(sql.toString(), get_TrxName());
-				addBufferLog(0, null, new BigDecimal(no), baseTable, 0, 0);
+				addBufferLog(0, null, new BigDecimal(no), baseTableName, 0, 0);
 			}
 		} else {
 			// auto update all translations
 			StringBuilder sql = new StringBuilder("UPDATE ").append(trlTable).append(" SET (")
 					.append(columnNames).append(",IsTranslated) = (SELECT ").append(columnNames)
-					.append(",'Y' FROM ").append(baseTable).append(" b WHERE ").append(trlTable).append(".")
-					.append(baseTable).append("_ID=b.").append(baseTable).append("_ID) WHERE AD_Client_ID=")
+					.append(",'Y' FROM ").append(baseTableName).append(" b WHERE ").append(trlTable).append(".")
+					.append(baseTable.getKeyColumns()[0]).append("=b.").append(baseTable.getKeyColumns()[0]).append(") WHERE AD_Client_ID=")
 					.append(getAD_Client_ID());
 
 			int no = DB.executeUpdateEx(sql.toString(), get_TrxName());
-			addBufferLog(0, null, new BigDecimal(no), baseTable, 0, 0);
+			addBufferLog(0, null, new BigDecimal(no), baseTableName, 0, 0);
 		}
 	  } catch (DBException e) {
 		String msg = trlTable + " -> ";

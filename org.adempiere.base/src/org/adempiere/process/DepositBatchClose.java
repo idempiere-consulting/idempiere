@@ -36,7 +36,7 @@ import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
  
 /**
- *  Close Deposit Batch.
+ *  Close Deposit Batch (set processed to Y)
  *
  *	@author Alejandro Falcone
  *	@version $Id: DepositBatchClose.java,v 1.2 2007/07/03 00:51:01 afalcone Exp $
@@ -50,16 +50,16 @@ public class DepositBatchClose extends SvrProcess
 	/**
 	 *  Prepare - e.g., get Parameters.
 	 */
+	@Override
 	protected void prepare()
 	{
 		ProcessInfoParameter[] para = getParameter();
 		for (int i = 0; i < para.length; i++)
 		{
-			String name = para[i].getParameterName();
 			if (para[i].getParameter() == null)
 				;
 			else
-				log.log(Level.SEVERE, "prepare - Unknown Parameter: " + name);
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), para[i]);
 		}
 		m_C_DepositBatch_ID = getRecord_ID();
 	}	//	prepare
@@ -69,6 +69,7 @@ public class DepositBatchClose extends SvrProcess
 	 *  @return Message (translated text)
 	 *  @throws Exception if not successful
 	 */
+	@Override
 	protected String doIt() throws Exception
 	{
 		MDepositBatch depositbatch = new MDepositBatch (getCtx(), m_C_DepositBatch_ID, get_TrxName());

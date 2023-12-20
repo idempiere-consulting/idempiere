@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.logging.Level;
 
 import org.adempiere.exceptions.AdempiereException;
+import org.compiere.model.MProcessPara;
 import org.compiere.model.MRMA;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
@@ -63,7 +64,7 @@ public class CreateFromRMA extends SvrProcess
 			else if (name.equals("M_RMA_ID"))
 				p_M_RMA_ID = para[i].getParameterAsInt();
 			else
-				log.log(Level.SEVERE, "Unknown Parameter: " + name);
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), para[i]);
 		}
 	}
 
@@ -83,12 +84,9 @@ public class CreateFromRMA extends SvrProcess
 		if (log.isLoggable(Level.CONFIG)) log.config(rma.toString());
 		
 		StringBuilder sql = new StringBuilder();
-		sql.append("SELECT t.T_Selection_ID, v.Line, v.M_InOut_ID, v.M_InOutLine_ID, ");
-		sql.append("v.MovementQty, v.Description ");
-		sql.append("FROM T_Selection t, M_RMA_CreateFrom_v v ");
-		sql.append("WHERE t.T_Selection_ID=v.M_RMA_CreateFrom_v_ID ");
-		sql.append("AND t.AD_PInstance_ID=? ");
-		sql.append("ORDER BY v.Line, v.M_InOut_ID, t.T_Selection_ID ");
+		sql.append("SELECT t.T_Selection_ID ");
+		sql.append("FROM T_Selection t ");
+		sql.append("WHERE t.AD_PInstance_ID=? ");
 		
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
@@ -105,15 +103,7 @@ public class CreateFromRMA extends SvrProcess
 				
 				String ColumnName = "M_InOutLine_ID";
 				String key = ColumnName + "_" + T_Selection_ID;
-				selectionValueMap.put(key, rs.getInt(ColumnName));
-				
-				ColumnName = "MovementQty";
-				key = ColumnName + "_" + T_Selection_ID;
-				selectionValueMap.put(key, rs.getBigDecimal(ColumnName));
-				
-				ColumnName = "Description";
-				key = ColumnName + "_" + T_Selection_ID;
-				selectionValueMap.put(key, rs.getString(ColumnName));
+				selectionValueMap.put(key, T_Selection_ID);
 			}
 		}
 		catch (Exception e)

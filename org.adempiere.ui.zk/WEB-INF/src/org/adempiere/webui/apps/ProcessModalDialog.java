@@ -20,16 +20,21 @@ import java.util.logging.Level;
 
 import org.adempiere.webui.ClientInfo;
 import org.adempiere.webui.LayoutUtils;
+import org.adempiere.webui.component.Tabpanel;
 import org.adempiere.webui.component.Window;
 import org.adempiere.webui.event.DialogEvents;
+import org.adempiere.webui.panel.ITabOnCloseHandler;
+import org.adempiere.webui.session.SessionManager;
 import org.adempiere.webui.util.ZKUpdateUtil;
 import org.compiere.model.MPInstance;
+import org.compiere.model.MSysConfig;
 import org.compiere.print.MPrintFormat;
 import org.compiere.process.ProcessInfo;
 import org.compiere.util.CLogger;
 import org.compiere.util.Env;
 import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.HtmlBasedComponent;
+import org.zkoss.zk.ui.Page;
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 import org.zkoss.zk.ui.event.Events;
@@ -45,19 +50,32 @@ import org.zkoss.zk.ui.event.Events;
  *  @author     arboleda - globalqss
  *  - Implement ShowHelp option on processes and reports
  */
-public class ProcessModalDialog extends AbstractProcessDialog implements EventListener<Event>, DialogEvents
+public class ProcessModalDialog extends AbstractProcessDialog implements EventListener<Event>, DialogEvents, ITabOnCloseHandler
 {
 	/**
-	 * 
+	 * generated serial id
 	 */
-	private static final long serialVersionUID = -6227339628038418701L;
-	
-	private static final String ON_OK_ECHO = "onOkEcho";
+	private static final long serialVersionUID = -3116200847404416861L;
+
+	/** 
+	 * Event echo form {@link #onOk()} to defer execution of {@link #onOk()}.
+	 * Execution is defer to happens after the dismiss of modal dialog (usually info window) blocking parameter panel. 
+	 */
+	private static final String ON_OK_ECHO_EVENT = "onOkEcho";
 	
 	/**	Logger			*/
 	private static final CLogger log = CLogger.getCLogger(ProcessModalDialog.class);
-	//
+	/** 
+	 * Store screen orientation from last onClientInfo event.
+	 * Use to detect change of screen orientation and adapt layout accordingly. 
+	 */
 	private String orientation;
+
+	private ITabOnCloseHandler originalOnCloseHandler;
+
+	private Tabpanel parentTabPanel;
+	/* SysConfig USE_ESC_FOR_TAB_CLOSING */
+	private boolean isUseEscForTabClosing = MSysConfig.getBooleanValue(MSysConfig.USE_ESC_FOR_TAB_CLOSING, false, Env.getAD_Client_ID(Env.getCtx()));
 
 	/**
 	 * @param WindowNo
@@ -117,6 +135,18 @@ public class ProcessModalDialog extends AbstractProcessDialog implements EventLi
 	 */
 	public ProcessModalDialog(EventListener<Event> listener, int WindowNo, ProcessInfo pi, boolean autoStart)
 	{
+		this(listener, WindowNo, 0, pi, autoStart);
+	}
+
+	/**
+	 * @param listener
+	 * @param WindowNo
+	 * @param TabNo
+	 * @param pi
+	 * @param autoStart
+	 */
+	public ProcessModalDialog(EventListener<Event> listener, int WindowNo, int TabNo, ProcessInfo pi, boolean autoStart)
+	{
 		super();
 		
 		if (listener != null) 
@@ -128,7 +158,7 @@ public class ProcessModalDialog extends AbstractProcessDialog implements EventLi
 		log.info("Process=" + pi.getAD_Process_ID());
 		try
 		{
-			init(Env.getCtx(), WindowNo, pi.getAD_Process_ID(), pi, autoStart, true);
+			init(Env.getCtx(), WindowNo, TabNo, pi.getAD_Process_ID(), pi, autoStart, true);
 			if (mainParameterLayout != null)// when auto start it's null
 			{
 				mainParameterLayout.setStyle("max-height:" + ClientInfo.get().desktopHeight + "px");
@@ -160,10 +190,17 @@ public class ProcessModalDialog extends AbstractProcessDialog implements EventLi
 		{
 			log.log(Level.SEVERE, "", ex);
 		}
-		addEventListener(ON_OK_ECHO, this);
+		addEventListener(ON_OK_ECHO_EVENT, this);
 		addEventListener(Events.ON_CANCEL, e -> onCancel());
 	}
 
+	/**
+	 * @param WindowNo
+	 * @param AD_Process_ID
+	 * @param tableId
+	 * @param recordId
+	 * @param autoStart
+	 */
 	public ProcessModalDialog (int WindowNo, int AD_Process_ID, int tableId, int recordId, boolean autoStart)
 	{
 		this(null, WindowNo, AD_Process_ID, tableId, recordId, autoStart);
@@ -180,6 +217,20 @@ public class ProcessModalDialog extends AbstractProcessDialog implements EventLi
 	public ProcessModalDialog (EventListener<Event> listener, int WindowNo, int AD_Process_ID, int tableId, int recordId, boolean autoStart)
 	{
 		this(listener, WindowNo, new ProcessInfo("", AD_Process_ID, tableId, recordId), autoStart);
+	}
+
+	/**
+	 * Dialog to start a process/report
+	 * @param WindowNo
+	 * @param AD_Process_ID
+	 * @param tableId
+	 * @param recordId
+	 * @param recordUU
+	 * @param autoStart
+	 */
+	public ProcessModalDialog (EventListener<Event> listener, int WindowNo, int AD_Process_ID, int tableId, int recordId, String recordUU, boolean autoStart)
+	{
+		this(listener, WindowNo, new ProcessInfo("", AD_Process_ID, tableId, recordId, recordUU), autoStart);
 	}
 
 	/**
@@ -242,7 +293,11 @@ public class ProcessModalDialog extends AbstractProcessDialog implements EventLi
 	
 	@Override
 	public void updateUI() {
-		
+		if (parentTabPanel != null) {
+			parentTabPanel.setOnCloseHandler(originalOnCloseHandler);
+			originalOnCloseHandler = null;
+			parentTabPanel = null;
+		}
 	}
 	
 	@Override
@@ -250,15 +305,42 @@ public class ProcessModalDialog extends AbstractProcessDialog implements EventLi
 		closeBusyDialog();
 	}
 	
+	@Override
+	public void onPageAttached(Page newpage, Page oldpage) {
+		super.onPageAttached(newpage, oldpage);
+		Component parent = this.getParent();
+		while (parent != null) {
+			if (parent instanceof Tabpanel) {
+				parentTabPanel = (Tabpanel) parent;
+				originalOnCloseHandler = parentTabPanel.getOnCloseHandler();
+				parentTabPanel.setOnCloseHandler(this);
+				break;
+			}
+			parent = parent.getParent();
+		}
+	}
+
+
+	@Override
+	public void onPageDetached(Page page) {
+		super.onPageDetached(page);
+		if (parentTabPanel != null && isCancel()) {
+			parentTabPanel.setOnCloseHandler(originalOnCloseHandler);
+			originalOnCloseHandler = null;
+			parentTabPanel = null;
+		}
+	}
+
 	/**
 	 * handle events
 	 */
+	@Override
 	public void onEvent(Event event) {		
 		Component component = event.getTarget();
 		if (component.equals(bOK)) {
 			super.onEvent(event);
 			onOk();
-		} else if (event.getName().equals(ON_OK_ECHO)) {
+		} else if (event.getName().equals(ON_OK_ECHO_EVENT)) {
 			onOk();
 		} else if (component.equals(bCancel)) {
 			super.onEvent(event);
@@ -268,14 +350,24 @@ public class ProcessModalDialog extends AbstractProcessDialog implements EventLi
 		}
 	}
 
+	/**
+	 * Handle ON_Click event from {@link #bCancel}
+	 */
 	private void onCancel() {
+		// do not allow to close tab for Events.ON_CTRL_KEY event
+		if(isUseEscForTabClosing)
+			SessionManager.getAppDesktop().setCloseTabWithShortcut(false);
+
 		cancelProcess();
 	}
 
+	/**
+	 * Handle ON_Click event from {@link #bOK}
+	 */
 	private void onOk() {
 		if (getParameterPanel().isWaitingForDialog())
 		{
-			Events.echoEvent(ON_OK_ECHO, this, null);
+			Events.echoEvent(ON_OK_ECHO_EVENT, this, null);
 			return;
 		}
 		if(fPrintFormat != null && fPrintFormat.getValue() != null) {
@@ -290,6 +382,9 @@ public class ProcessModalDialog extends AbstractProcessDialog implements EventLi
 		startProcess();
 	}	
 	
+	/**
+	 * Handle client info event from browser
+	 */
 	protected void onClientInfo() {
 		if (getPage() != null) {
 			String newOrientation = ClientInfo.get().orientation;
@@ -307,4 +402,10 @@ public class ProcessModalDialog extends AbstractProcessDialog implements EventLi
 			}
 		}
 	}
+
+	@Override
+	public void onClose(Tabpanel tabPanel) {
+		return;
+	}
+
 }	//	ProcessModalDialog

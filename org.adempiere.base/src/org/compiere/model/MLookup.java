@@ -36,7 +36,6 @@ import org.compiere.util.CLogMgt;
 import org.compiere.util.DB;
 import org.compiere.util.DisplayType;
 import org.compiere.util.Env;
-import org.compiere.util.Ini;
 import org.compiere.util.KeyNamePair;
 import org.compiere.util.NamePair;
 import org.compiere.util.ValueNamePair;
@@ -58,7 +57,7 @@ import org.compiere.util.ValueNamePair;
 public final class MLookup extends Lookup implements Serializable
 {
 	/**
-	 * 
+	 * generated serial id
 	 */
 	private static final long serialVersionUID = 2288661955135689187L;
 
@@ -74,15 +73,8 @@ public final class MLookup extends Lookup implements Serializable
 		m_tabNo = TabNo;
 		if (log.isLoggable(Level.FINE)) log.fine(m_info.KeyColumn);
 
-		//  load into local lookup, if already cached
-		if (Ini.isClient()) 
-		{
-			if (MLookupCache.loadFromCache (m_info, m_lookup))
-				return;
-		}
-
 		//  Don't load Search or CreatedBy/UpdatedBy
-		if (m_info.DisplayType == DisplayType.Search 
+		if (m_info.DisplayType == DisplayType.Search || m_info.DisplayType == DisplayType.SearchUU
 			|| m_info.IsCreadedUpdatedBy)
 			return;
 		//  Don't load Parents/Keys
@@ -98,8 +90,6 @@ public final class MLookup extends Lookup implements Serializable
 	public static final String  INACTIVE_S = "~";
 	/** Inactive Marker End         */
 	public static final String  INACTIVE_E = "~";
-	/** Number of max rows to load	*/
-	private static final int	MAX_ROWS = 5000;
 	/**	Indicator for Null			*/
 	private static Integer 		MINUS_ONE = Integer.valueOf(-1);
 
@@ -134,6 +124,7 @@ public final class MLookup extends Lookup implements Serializable
 	private boolean 		    m_hasShortListItems = false;	// IDEMPIERE 90
 
 	private final static int MAX_NAMEPAIR_CACHE_SIZE = 1000;
+	
 	/**
 	 *  Dispose
 	 */
@@ -159,7 +150,7 @@ public final class MLookup extends Lookup implements Serializable
 	}   //  dispose
 
 	/**
-	 *  Wait until async Load Complete
+	 *  Wait until asynchronous Load Complete
 	 */
 	public void loadComplete()
 	{
@@ -179,10 +170,10 @@ public final class MLookup extends Lookup implements Serializable
 	}   //  loadComplete
 
 	/**
-	 *	Get value (name) for key.
-	 *  If not found return null;
-	 *  @param key key	(Integer for Keys or String for Lists)
-	 *  @return value
+	 *	Get NamePair/KeyNamePair for key.
+	 *  If not found return null.
+	 *  @param key key value (Integer for Keys or String for Lists)
+	 *  @return NamePair/KeyNamePair
 	 */
 	public NamePair get (Object key, boolean includeDirect)
 	{
@@ -211,14 +202,14 @@ public final class MLookup extends Lookup implements Serializable
 		{
 			if (log.isLoggable(Level.FINER)) log.finer((m_info.KeyColumn==null ? "ID="+m_info.Column_ID : m_info.KeyColumn) + ": waiting for Loader");
 			loadComplete();
-			//	is most current
+			// try again after loading completed
 			retValue = (NamePair)m_lookup.get(key);
 			if (retValue != null)
 				return retValue;
 		}
 
 		if (includeDirect) {
-			//	Try to get it directly
+			//	Try to get it directly from DB
 			boolean cacheLocal = m_info.IsValidated ; 
 			return getDirect(key, false, cacheLocal);	//	do NOT cache	
 		}
@@ -226,19 +217,30 @@ public final class MLookup extends Lookup implements Serializable
 		return null;
 	}	//	get
 
+	/**
+	 * Get NamePair/KeyNamePair for key.
+	 * @param key
+	 * @return NamePair/KeyNamePair or null
+	 */
 	public NamePair get(Object key) {
 		return get(key, true);
 	}
 
+	/**
+	 * Get NamePair/KeyNamePair for key. <br/> 
+	 * If not found in local lookup cache, do not try to load direct from DB.
+	 * @param key
+	 * @return NamePair/KeyNamePair or null
+	 */
 	public NamePair getNoDirect(Object key) {
 		return get(key, false);
 	}
 
 	/**
-	 *	Get Display value (name).
-	 *  If not found return key embedded in inactive signs.
-	 *  @param key key
-	 *  @return value
+	 *	Get Display Text.<br/>
+	 *  If not found, return key embedded in "<>".
+	 *  @param key key value
+	 *  @return display text
 	 */
 	public String getDisplay (Object key)
 	{
@@ -275,9 +277,8 @@ public final class MLookup extends Lookup implements Serializable
 	}	//	getDisplay
 
 	/**
-	 *  The Lookup contains the key
 	 *  @param key key
-	 *  @return true if key is known
+	 *  @return true if key exists in local lookup cache or in DB
 	 */
 	public boolean containsKey (Object key)
 	{
@@ -293,9 +294,8 @@ public final class MLookup extends Lookup implements Serializable
 	}   //  containsKey
 
 	/**
-	 *  The Lookup contains the key, do not get direct
 	 *  @param key key
-	 *  @return true if key is known
+	 *  @return true if key exists in local lookup cache (do not check DB)
 	 */
 	public boolean containsKeyNoDirect (Object key)
 	{
@@ -313,6 +313,7 @@ public final class MLookup extends Lookup implements Serializable
 	/**
 	 * @return  a string representation of the object.
 	 */
+	@Override
 	public String toString()
 	{
 		StringBuilder msgreturn = new StringBuilder("MLookup[").append(m_info.KeyColumn).append(",Column_ID=").append(m_info.Column_ID)
@@ -328,6 +329,7 @@ public final class MLookup extends Lookup implements Serializable
 	 * @return  <code>true</code> if this object is the same as the obj
 	 *          argument; <code>false</code> otherwise.
 	 */
+	@Override
 	public boolean equals(Object obj)
 	{
 		if (obj instanceof MLookup)
@@ -339,6 +341,7 @@ public final class MLookup extends Lookup implements Serializable
 		return false;
 	}	//	equals
 	
+	@Override
 	public int hashCode()
 	{
 	  assert false : "hashCode not designed";
@@ -356,7 +359,7 @@ public final class MLookup extends Lookup implements Serializable
 
 	/**
 	 *	Is it all loaded
-	 *  @return true, if all loaded
+	 *  @return true if all loaded
 	 */
 	public boolean isAllLoaded()
 	{
@@ -365,8 +368,9 @@ public final class MLookup extends Lookup implements Serializable
 
 	/**
 	 *	Is the List fully Validated
-	 *  @return true, if validated
+	 *  @return true if validated (i.e validation code have been parsed)
 	 */
+	@Override
 	public boolean isValidated()
 	{
 		if (m_info == null)
@@ -378,25 +382,26 @@ public final class MLookup extends Lookup implements Serializable
 	 *  Get Validation SQL
 	 *  @return Validation SQL
 	 */
+	@Override
 	public String getValidation()
 	{
 		return m_info.ValidationCode;
 	}   //  getValidation
 
 	/**
-	 *  Get Reference Value
-	 *  @return Reference Value
+	 *  Get Reference Value ID
+	 *  @return AD_Reference_Value_ID
 	 */
 	public int getAD_Reference_Value_ID()
 	{
 		return m_info.AD_Reference_Value_ID;
 	}   //  getAD_Reference_Value_ID
 
-
 	/**
 	 *  Has inactive elements in list
-	 *  @return true, if list contains inactive values
+	 *  @return true if list contains inactive values
 	 */
+	@Override
 	public boolean hasInactive()
 	{
 		return m_hasInactive;
@@ -411,9 +416,9 @@ public final class MLookup extends Lookup implements Serializable
 	}
 	
 	/**
-	 *	Return info as ArrayList containing Value/KeyNamePair
-	 *  @param onlyValidated only validated
-	 * 	@param loadParent get Data even for parent lookups
+	 *	Return data as ArrayList containing Value/KeyNamePair.
+	 *  @param onlyValidated true to reload lookup data if validation code have not been parsed or needs re-parse
+	 * 	@param loadParent true to load data for lookup with IsParent=true
 	 *  @return List
 	 */
 	private ArrayList<Object> getData (boolean onlyValidated, boolean loadParent)
@@ -452,6 +457,7 @@ public final class MLookup extends Lookup implements Serializable
 	 *  @param shortlist
 	 *  @return list
 	 */
+	@Override
 	public ArrayList<Object> getData (boolean mandatory, boolean onlyValidated, boolean onlyActive, boolean temporary, boolean shortlist) // idempiere 90
 	{
 		//	create list
@@ -508,17 +514,18 @@ public final class MLookup extends Lookup implements Serializable
 	private HashMap<Object,Object>	m_lookupDirect = null;
 	private Future<?> m_loaderFuture;
 
+	@Override
 	public NamePair getDirect (Object key, boolean saveInCache, boolean cacheLocal)
 	{
 		return getDirect(key, saveInCache, cacheLocal, null);
 	}	//	getDirect
 
 	/**
-	 *	Get Data Direct from Table.
+	 *	Get Data Direct from DB.
 	 *  @param key key
-	 *  @param saveInCache save in cache for r/w
-	 * 	@param cacheLocal cache locally for r/o
-	 *  @return value
+	 *  @param saveInCache true save in local lookup cache
+	 * 	@param cacheLocal true to save in direct lookup cache
+	 *  @return NamePair/KeyNamePir
 	 */
 	public NamePair getDirect (Object key, boolean saveInCache, boolean cacheLocal, String trxName)
 	{
@@ -586,16 +593,24 @@ public final class MLookup extends Lookup implements Serializable
 				}
 				else
 				{
-					String value = rs.getString(2);
+					String value;
+					if (m_info.KeyColumn.endsWith("_UU"))
+						value = rs.getString(1);
+					else
+						value = rs.getString(2);
 					ValueNamePair p = new ValueNamePair(value, name.toString());
 					if (saveInCache)		//	save if
 						m_lookup.put(value, p);
 					directValue = p;
 					vnpCache.put(p.getValue(), p);
 				}
-				if (rs.next())
-					log.log(Level.SEVERE, m_info.KeyColumn + ": Not unique (first returned) for "
-						+ key + " SQL=" + m_info.QueryDirect);
+				if (rs.next()) {
+					Level level = Level.SEVERE;
+					if (MChangeLog.Table_Name.equals(m_info.TableName))
+						level = Level.INFO;
+					if (log.isLoggable(level))
+						log.log(level, m_info.KeyColumn + ": Not unique (first returned) for " + key + " SQL=" + m_info.QueryDirect);
+				}
 			}
 			else
 			{
@@ -631,7 +646,6 @@ public final class MLookup extends Lookup implements Serializable
 		m_hasInactive = true;
 		return directValue;
 	}	//	getDirect
-
 	
 	@Override
 	public NamePair[] getDirect(Object[] keys) 
@@ -718,7 +732,11 @@ public final class MLookup extends Lookup implements Serializable
 					}
 					else
 					{
-						String value = rs.getString(2);
+						String value;
+						if (m_info.KeyColumn.endsWith("_UU"))
+							value = rs.getString(1);
+						else
+							value = rs.getString(2);
 						ValueNamePair p = new ValueNamePair(value, name.toString());
 						vnpCache.put(p.getValue(), p);
 						Integer idx  = notInCaches.get(p.getValue());
@@ -779,6 +797,7 @@ public final class MLookup extends Lookup implements Serializable
 	 *	Get Zoom Query String
 	 *  @return Zoom SQL Where Clause
 	 */
+	@Override
 	public MQuery getZoomQuery()
 	{
 		return m_info.ZoomQuery;
@@ -788,6 +807,7 @@ public final class MLookup extends Lookup implements Serializable
 	 *	Get underlying fully qualified Table.Column Name
 	 *  @return Key Column
 	 */
+	@Override
 	public String getColumnName()
 	{
 		return m_info.KeyColumn;
@@ -795,15 +815,18 @@ public final class MLookup extends Lookup implements Serializable
 
 	/**
 	 *	Refresh and return number of items read.
-	 * 	Get get data of parent lookups
 	 *  @return no of items read
 	 */
+	@Override
 	public int refresh ()
 	{
 		if (m_refreshing) return 0;
 		return refresh(true);
 	}	//	refresh
 
+	/**
+	 * @return number of items read
+	 */
 	public int refreshItemsAndCache()
 	{
 		if (m_refreshing) return 0;
@@ -820,7 +843,7 @@ public final class MLookup extends Lookup implements Serializable
 	
 	/**
 	 *	Refresh and return number of items read
-	 * 	@param loadParent get data of parent lookups
+	 * 	@param loadParent true to load data of lookup with IsParent=true
 	 *  @return no of items refresh
 	 */
 	public int refresh (boolean loadParent)
@@ -842,7 +865,9 @@ public final class MLookup extends Lookup implements Serializable
 		{
 			//force refresh
 			m_lookup.clear();
-			fillComboBox(isMandatory(), true, true, false, isShortList()); // idempiere 90		
+			MReference ref = m_info.AD_Reference_Value_ID > 0 ? MReference.get(Env.getCtx(),m_info.AD_Reference_Value_ID) : null;
+			boolean onlyActive = ref == null || !ref.isShowInactiveRecords();
+			fillComboBox(isMandatory(), true, onlyActive, false, isShortList()); // idempiere 90		
 			return m_lookup.size();
 		}
 		finally
@@ -853,7 +878,7 @@ public final class MLookup extends Lookup implements Serializable
 
 	/**
 	 * Do the actual loading from database
-	 * @param loadParent
+	 * @param loadParent true to load data for lookup with IsParent=true
 	 * @return number of records loaded
 	 */
 	private int loadData(boolean loadParent)
@@ -887,6 +912,10 @@ public final class MLookup extends Lookup implements Serializable
 			m_lookupDirect.clear();
 	}	//	removeAllElements
 	
+	/**
+	 * @param info
+	 * @return true if validation code have been parsed and doesn't need re-parse
+	 */
 	private boolean isValidated(MLookupInfo info)
 	{
 		if (info.IsValidated) return true;
@@ -903,8 +932,6 @@ public final class MLookup extends Lookup implements Serializable
 	{
 		return m_info;
 	}
-	
-	
 	
 	private final static CCache<String, CCache<String, List<KeyNamePair>>> s_keyNamePairCache = new CCache<String, CCache<String, List<KeyNamePair>>>(null, "MLookup.KeyNamePairCache", 100, CCache.DEFAULT_EXPIRE_MINUTE, false, 500);
 	private final static CCache<String, CCache<String, List<ValueNamePair>>> s_valueNamePairCache = new CCache<String, CCache<String, List<ValueNamePair>>>(null, "MLookup.ValueNamePairCache", 100, CCache.DEFAULT_EXPIRE_MINUTE, false, 500);
@@ -968,13 +995,13 @@ public final class MLookup extends Lookup implements Serializable
 		return vnpCache;
 	}
 	
-	/**************************************************************************
-	 *	MLookup Loader
+	/**
+	 *	Background Data Loader
 	 */
-	class MLoader extends ContextRunnable implements Serializable
+	protected class MLoader extends ContextRunnable implements Serializable
 	{
 		/**
-		 * 
+		 * generated serial id
 		 */
 		private static final long serialVersionUID = -7868426685745727939L;
 
@@ -989,10 +1016,16 @@ public final class MLookup extends Lookup implements Serializable
 		private long m_startTime = System.currentTimeMillis();
 
 		/**
-		 *	Load Lookup
+		 *	Load data
 		 */
 		protected void doRun()
 		{
+			/** Number of max rows to load	*/
+			int	MAX_ROWS = MSysConfig.getIntValue(MSysConfig.MAX_ROWS_IN_TABLE_COMBOLIST, 10000, Env.getAD_Client_ID(Env.getCtx()));
+			if (MAX_ROWS > 50000) {
+				log.warning("SysConfig MAX_ROWS_IN_TABLE_COMBOLIST set back to maximum allowed value of 50.000");
+				MAX_ROWS = 50000;  // impose hardcoded limit of 50.000
+			}
 			long startTime = System.currentTimeMillis();
 			StringBuilder sql = new StringBuilder().append(m_info.Query);
 
@@ -1166,7 +1199,11 @@ public final class MLookup extends Lookup implements Serializable
 					}
 					else
 					{
-						String value = rs.getString(2);
+						String value;
+						if (m_info.KeyColumn.endsWith("_UU"))
+							value = rs.getString(1);
+						else
+							value = rs.getString(2);
 						ValueNamePair p = new ValueNamePair(value, name.toString());
 						m_lookup.put(value, p);
 						vnpCache.add(p);

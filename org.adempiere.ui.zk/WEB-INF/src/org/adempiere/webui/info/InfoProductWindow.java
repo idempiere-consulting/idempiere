@@ -1,6 +1,27 @@
-/**
- * 
- */
+/***********************************************************************
+ * This file is part of iDempiere ERP Open Source                      *
+ * http://www.idempiere.org                                            *
+ *                                                                     *
+ * Copyright (C) Contributors                                          *
+ *                                                                     *
+ * This program is free software; you can redistribute it and/or       *
+ * modify it under the terms of the GNU General Public License         *
+ * as published by the Free Software Foundation; either version 2      *
+ * of the License, or (at your option) any later version.              *
+ *                                                                     *
+ * This program is distributed in the hope that it will be useful,     *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of      *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the        *
+ * GNU General Public License for more details.                        *
+ *                                                                     *
+ * You should have received a copy of the GNU General Public License   *
+ * along with this program; if not, write to the Free Software         *
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,          *
+ * MA 02110-1301, USA.                                                 *
+ *                                                                     *
+ * Contributors:                                                       *
+ * - hengsin                         								   *
+ **********************************************************************/
 package org.adempiere.webui.info;
 
 import java.sql.PreparedStatement;
@@ -32,7 +53,12 @@ import org.adempiere.webui.panel.InvoiceHistory;
 import org.adempiere.webui.session.SessionManager;
 import org.adempiere.webui.util.ZKUpdateUtil;
 import org.compiere.minigrid.ColumnInfo;
+import org.compiere.minigrid.EmbedWinInfo;
+import org.compiere.model.GridField;
+import org.compiere.model.Lookup;
 import org.compiere.model.MDocType;
+import org.compiere.model.MInfoWindow;
+import org.compiere.model.MProduct;
 import org.compiere.model.MRole;
 import org.compiere.model.MSysConfig;
 import org.compiere.util.DB;
@@ -46,29 +72,33 @@ import org.zkoss.zul.Center;
 import org.zkoss.zul.South;
 
 /**
+ * Info window for M_Product
  * @author hengsin
  *
  */
 public class InfoProductWindow extends InfoWindow {
 	/**
-	 * 
+	 * generated serial id
 	 */
 	private static final long serialVersionUID = -640644572459126094L;
 
 	protected Tabbox tabbedPane;
+	/** Storage by warehouse */
 	protected WListbox warehouseTbl;
 	protected String m_sqlWarehouse;
+	/** Substitute products */
 	protected WListbox substituteTbl;
 	protected String m_sqlSubstitute;
+	/** Related products */
 	protected WListbox relatedTbl;
 	protected String m_sqlRelated;
-    //Available to Promise Tab
+    /** Available to Promise Tab */
 	protected WListbox m_tableAtp;
 	
-	// Group atp by warehouse or non
+	/** true to sum ATP quantities by product attributes, warehouse and locator */
 	protected Checkbox chbShowDetailAtp;
 
-	//IDEMPIERE-337
+	/** Product price */
 	protected WListbox productpriceTbl;
 	protected String m_sqlProductprice;
     
@@ -79,7 +109,7 @@ public class InfoProductWindow extends InfoWindow {
 
 	protected Borderlayout contentBorderLayout;
 	
-	/** Instance Button				*/
+	/** Product Attribute Set Instance Button */
 	protected Button	m_PAttributeButton;
 
 	protected int m_M_Locator_ID;
@@ -125,13 +155,52 @@ public class InfoProductWindow extends InfoWindow {
 	 * @param whereClause
 	 * @param AD_InfoWindow_ID
 	 * @param lookup
+	 * @param field
+	 */
+	public InfoProductWindow(int WindowNo, String tableName, String keyColumn,
+			String queryValue, boolean multipleSelection, String whereClause,
+			int AD_InfoWindow_ID, boolean lookup, GridField field) {
+		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection,
+				whereClause, AD_InfoWindow_ID, lookup, field);
+	}
+	
+	/**
+	 * @param WindowNo
+	 * @param tableName
+	 * @param keyColumn
+	 * @param queryValue
+	 * @param multipleSelection
+	 * @param whereClause
+	 * @param AD_InfoWindow_ID
+	 * @param lookup
+	 * @param field
 	 * @param predefinedContextVariables
 	 */
 	public InfoProductWindow(int WindowNo, String tableName, String keyColumn,
 			String queryValue, boolean multipleSelection, String whereClause,
-			int AD_InfoWindow_ID, boolean lookup, String predefinedContextVariables) {
+			int AD_InfoWindow_ID, boolean lookup, GridField field, String predefinedContextVariables) {
 		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection,
-				whereClause, AD_InfoWindow_ID, lookup, null, predefinedContextVariables);
+				whereClause, AD_InfoWindow_ID, lookup, field, predefinedContextVariables);
+	}
+
+	/**
+	 * @param WindowNo
+	 * @param tableName
+	 * @param keyColumn
+	 * @param queryValue
+	 * @param multipleSelection
+	 * @param whereClause
+	 * @param AD_InfoWindow_ID
+	 * @param lookup
+	 * @param field
+	 * @param predefinedContextVariables
+	 * @param lookupModel
+	 */
+	public InfoProductWindow(int WindowNo, String tableName, String keyColumn, String queryValue,
+			boolean multipleSelection, String whereClause, int AD_InfoWindow_ID, boolean lookup, GridField field,
+			String predefinedContextVariables, Lookup lookupModel) {
+		super(WindowNo, tableName, keyColumn, queryValue, multipleSelection, whereClause, AD_InfoWindow_ID, lookup, field,
+				predefinedContextVariables, lookupModel);
 	}
 
 	@Override
@@ -179,6 +248,7 @@ public class InfoProductWindow extends InfoWindow {
 
 	@Override
 	protected void renderContentPane(Center center) {
+		//storage by warehouse
 		ColumnInfo[] s_layoutWarehouse = new ColumnInfo[]{
         		new ColumnInfo(Msg.translate(Env.getCtx(), "Warehouse"), "Warehouse", String.class, true, "Warehouse"),
         		new ColumnInfo(Msg.translate(Env.getCtx(), "QtyAvailable"), "sum(QtyAvailable)", Double.class, true, "QtyAvailable"),
@@ -193,10 +263,9 @@ public class InfoProductWindow extends InfoWindow {
 		m_sqlWarehouse += " GROUP BY Warehouse";		
 		warehouseTbl.setMultiSelection(false);
 		warehouseTbl.setShowTotals(true);
-		warehouseTbl.autoSize();
 		warehouseTbl.setwListBoxName("AD_InfoWindow_UU|"+ infoWindow.getAD_InfoWindow_UU() +"|stock");
-//        warehouseTbl.getModel().addTableModelListener(this);
 
+		//substitute products
         ColumnInfo[] s_layoutSubstitute = new ColumnInfo[]{
         		new ColumnInfo(Msg.translate(Env.getCtx(), "Warehouse"), "orgname", String.class, true, "orgname"),
         		new ColumnInfo(Msg.translate(Env.getCtx(), "Value"),
@@ -212,10 +281,9 @@ public class InfoProductWindow extends InfoWindow {
         substituteTbl = ListboxFactory.newDataTableAutoSize();
         m_sqlSubstitute = substituteTbl.prepareTable(s_layoutSubstitute, s_sqlFrom, s_sqlWhere, false, "M_PRODUCT_SUBSTITUTERELATED_V");        
         substituteTbl.setMultiSelection(false);
-        substituteTbl.autoSize();
         substituteTbl.setwListBoxName("AD_InfoWindow_UU|"+ infoWindow.getAD_InfoWindow_UU() + "|substitute");
-//        substituteTbl.getModel().addTableModelListener(this);
 
+        //related products
         ColumnInfo[] s_layoutRelated = new ColumnInfo[]{
            		new ColumnInfo(Msg.translate(Env.getCtx(), "Warehouse"), "orgname", String.class, true, "orgname"),
         		new ColumnInfo(
@@ -232,11 +300,9 @@ public class InfoProductWindow extends InfoWindow {
         relatedTbl = ListboxFactory.newDataTableAutoSize();
         m_sqlRelated = relatedTbl.prepareTable(s_layoutRelated, s_sqlFrom, s_sqlWhere, false, "M_PRODUCT_SUBSTITUTERELATED_V");
         relatedTbl.setMultiSelection(false);
-        relatedTbl.autoSize();
         relatedTbl.setwListBoxName("AD_InfoWindow_UU|"+ infoWindow.getAD_InfoWindow_UU() + "|related");
+        
         //Available to Promise Tab
-
-        //	Header
         ColumnInfo[] s_LayoutAtp =   new ColumnInfo[]{ 
         		new ColumnInfo(Msg.translate(Env.getCtx(), "Date"), "Date", String.class, true, "Date"),
         		new ColumnInfo(Msg.translate(Env.getCtx(), "QtyOnHand"), "QtyOnHand", Double.class, true, "QtyOnHand"),
@@ -253,7 +319,7 @@ public class InfoProductWindow extends InfoWindow {
         m_tableAtp.prepareTable(s_LayoutAtp, "M_Storage", null , false, "M_Storage");
 		m_tableAtp.setwListBoxName("AD_InfoWindow_UU|" + infoWindow.getAD_InfoWindow_UU() +"|ATP");
 		
-        //IDEMPIERE-337
+        //Product prices
         ArrayList<ColumnInfo> list = new ArrayList<ColumnInfo>();
         list.add(new ColumnInfo(Msg.translate(Env.getCtx(), "PriceListVersion"), "plv.Name", String.class, true, "PriceListVersion"));
         list.add(new ColumnInfo(Msg.translate(Env.getCtx(), "ValidFrom"), "plv.ValidFrom", Timestamp.class, true, "ValidFrom"));
@@ -272,9 +338,7 @@ public class InfoProductWindow extends InfoWindow {
         productpriceTbl = ListboxFactory.newDataTableAutoSize();
         m_sqlProductprice = productpriceTbl.prepareTable(s_layoutProductPrice, s_sqlFrom, s_sqlWhere, false, "pp") + " ORDER BY plv.ValidFrom DESC";
         productpriceTbl.setMultiSelection(false);
-        productpriceTbl.autoSize();
         productpriceTbl.setwListBoxName("AD_InfoWindow_UU|" + infoWindow.getAD_InfoWindow_UU() + "|price");
-//        productpriceTbl.getModel().addTableModelListener(this);
         
         tabbedPane = new Tabbox();
         ZKUpdateUtil.setHeight(tabbedPane, "100%");
@@ -283,7 +347,7 @@ public class InfoProductWindow extends InfoWindow {
 		Tabs tabs = new Tabs();
 		tabbedPane.appendChild(tabs);
 
-		Tab tab = new Tab(Util.cleanAmp(Msg.translate(Env.getCtx(), "Warehouse")));
+		Tab tab = new Tab(Util.cleanAmp(Msg.translate(Env.getCtx(), "WarehouseStock")));
 		tabs.appendChild(tab);
 		Tabpanel desktopTabPanel = new Tabpanel();
 		ZKUpdateUtil.setHeight(desktopTabPanel, "100%");
@@ -331,7 +395,7 @@ public class InfoProductWindow extends InfoWindow {
 			public void onEvent(Event event) throws Exception {
 				if (contentPanel.getLayout() != null) {
 					int M_Warehouse_ID = getSelectedWarehouseId();
-					Integer m_M_Product_ID = getSelectedRowKey();
+					Integer m_M_Product_ID = getIntSelectedRowKey(MProduct.Table_ID);
 					if (m_M_Product_ID != null)
 						initAtpTab(M_Warehouse_ID, m_M_Product_ID);
 				}
@@ -364,8 +428,8 @@ public class InfoProductWindow extends InfoWindow {
 		ZKUpdateUtil.setHeight(south, detailHeight + "px");
 		south.setCollapsible(true);
 		south.setSplittable(true);
-		south.setTitle(Msg.translate(Env.getCtx(), "WarehouseStock"));
-		south.setTooltiptext(Msg.translate(Env.getCtx(), "WarehouseStock"));
+		south.setTitle(Msg.translate(Env.getCtx(), "Related Information"));
+		south.setTooltiptext(Msg.translate(Env.getCtx(), "Related Information"));
 		south.setSclass("south-collapsible-with-title");
 		if (ClientInfo.maxHeight(ClientInfo.MEDIUM_HEIGHT-1))
 		{
@@ -413,10 +477,29 @@ public class InfoProductWindow extends InfoWindow {
 		relatedTbl.repaint();
 		productpriceTbl.repaint();
 		m_tableAtp.repaint();
+
+		// add other related info windows (AD_InfoRelated)
+		if (embeddedWinList.size() > 0) {
+			for (EmbedWinInfo embeddedWin : embeddedWinList) {
+				if (embeddedWin.getInfoTbl() instanceof WListbox) {
+					tab = new Tab(embeddedWin.getInfowin().get_Translation(MInfoWindow.COLUMNNAME_Name));
+					tabs.appendChild(tab);
+					desktopTabPanel = new Tabpanel();
+					ZKUpdateUtil.setHeight(desktopTabPanel, "100%");
+					desktopTabPanel.appendChild( (WListbox) embeddedWin.getInfoTbl() );
+					tabPanels.appendChild(desktopTabPanel);
+					((WListbox)embeddedWin.getInfoTbl()).repaint();
+				}
+			}
+		}// render embedded
+
 	}
 
+	/**
+	 * handle on click event for product attribute
+	 */
 	protected void onPAttributeClick() {
-		Integer productInteger = getSelectedRowKey();
+		Integer productInteger = getIntSelectedRowKey(MProduct.Table_ID);
 		if (productInteger == null) {
 			m_PAttributeButton.setEnabled(false);
 			return;
@@ -443,6 +526,10 @@ public class InfoProductWindow extends InfoWindow {
 		});
 	}
 	
+	/**
+	 * 
+	 * @return label for selected warehouse parameter
+	 */
 	protected String getSelectedWarehouseLabel() {
 		for(WEditor editor : editors) {
 			if (editor.getGridField() != null && editor.getGridField().getColumnName().equals("M_Warehouse_ID")) {
@@ -456,6 +543,10 @@ public class InfoProductWindow extends InfoWindow {
 		return "";
 	}
 
+	/**
+	 * 
+	 * @return id for selected price list version parameter
+	 */
 	protected int getSelectedPriceListVersionId() {
 		for(WEditor editor : editors) {
 			if (editor.getGridField() != null && editor.getGridField().getColumnName().equals("M_PriceList_Version_ID")) {
@@ -469,6 +560,10 @@ public class InfoProductWindow extends InfoWindow {
 		return 0;
 	}
 
+	/**
+	 * 
+	 * @return id for selected warehouse parameter
+	 */
 	protected int getSelectedWarehouseId() {
 		for(WEditor editor : editors) {
 			if (editor.getGridField() != null && editor.getGridField().getColumnName().equals("M_Warehouse_ID")) {
@@ -636,10 +731,12 @@ public class InfoProductWindow extends InfoWindow {
 	
 	/**
 	 * 	Refresh Query
+	 *  @param M_Warehouse_ID
+	 *  @param M_PriceList_Version_ID
 	 */
 	protected void refresh(int M_Warehouse_ID, int M_PriceList_Version_ID)
 	{
-		int m_M_Product_ID = getSelectedRowKey();
+		int m_M_Product_ID = getIntSelectedRowKey(MProduct.Table_ID);
 		String sql = m_sqlWarehouse;
 		if (log.isLoggable(Level.FINEST)) log.finest(sql);
 		PreparedStatement pstmt = null;
@@ -717,9 +814,8 @@ public class InfoProductWindow extends InfoWindow {
 		}
 	}	//	refresh
 	
-	// Elaine 2008/11/26
 	/**
-	 *	Query ATP
+	 * Query Avaiable to promise (ATP)
 	 * @param m_M_Warehouse_ID
 	 * @param m_M_Product_ID 
 	 */
@@ -873,14 +969,18 @@ public class InfoProductWindow extends InfoWindow {
 		m_tableAtp.setData(model, columnNames);
 	}	//	initAtpTab
 	
+	/**
+	 * @return true if show detail of ATP
+	 */
 	public boolean isShowDetailATP() {
 		return chbShowDetailAtp.isChecked();
 	}
 
 	@Override
 	protected void showHistory() {
-		log.info("");
-		Integer M_Product_ID = getSelectedRowKey();
+		if (log.isLoggable(Level.INFO))
+			log.info("");
+		Integer M_Product_ID = getIntSelectedRowKey(MProduct.Table_ID);
 		if (M_Product_ID == null)
 			return;
 		int M_Warehouse_ID = getSelectedWarehouseId();
@@ -920,7 +1020,7 @@ public class InfoProductWindow extends InfoWindow {
 				String.valueOf(m_M_Locator_ID));
 		}
         //  publish for Callout to read
-        Integer ID = getSelectedRowKey();
+        Integer ID = getIntSelectedRowKey(MProduct.Table_ID);
         Env.setContext(Env.getCtx(), p_WindowNo, Env.TAB_INFO, "M_Product_ID", ID == null ? "0" : ID.toString());
 	}
 

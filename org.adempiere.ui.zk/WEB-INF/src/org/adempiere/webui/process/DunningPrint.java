@@ -27,6 +27,7 @@ import org.compiere.model.MDunningLevel;
 import org.compiere.model.MDunningRun;
 import org.compiere.model.MDunningRunEntry;
 import org.compiere.model.MMailText;
+import org.compiere.model.MProcessPara;
 import org.compiere.model.MQuery;
 import org.compiere.model.MUser;
 import org.compiere.model.MUserMail;
@@ -37,6 +38,8 @@ import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.EMail;
+import org.compiere.util.Language;
+import org.compiere.util.Util;
 
 /**
  *	Dunning Letter Print
@@ -83,7 +86,7 @@ public class DunningPrint extends SvrProcess
 			else if (name.equals("PrintUnprocessedOnly"))
 				p_PrintUnprocessedOnly = "Y".equals(para[i].getParameter());
 			else
-				log.log(Level.SEVERE, "Unknown Parameter: " + name);
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), para[i]);
 		}
 	}	//	prepare
 
@@ -101,14 +104,12 @@ public class DunningPrint extends SvrProcess
 		//	Need to have Template
 		if (p_EMailPDF && p_R_MailText_ID == 0)
 			throw new AdempiereUserError ("@NotFound@: @R_MailText_ID@");
-//		String subject = "";
 		MMailText mText = null;
 		if (p_EMailPDF)
 		{
 			mText = new MMailText (getCtx(), p_R_MailText_ID, get_TrxName());
 			if (p_EMailPDF && mText.get_ID() == 0)
 				throw new AdempiereUserError ("@NotFound@: @R_MailText_ID@ - " + p_R_MailText_ID);
-//			subject = mText.getMailHeader();
 		}
 		//
 		MDunningRun run = new MDunningRun (getCtx(), p_C_DunningRun_ID, get_TrxName());
@@ -177,8 +178,13 @@ public class DunningPrint extends SvrProcess
 			StringBuilder msginfo = new StringBuilder().append(bp.getName()).append(", Amt=").append(entry.getAmt());
 			info.setDescription(msginfo.toString());
 			ReportEngine re = null;
-			if (format != null)
+			if (format != null) {
+				Language lang = client.getLanguage();
+				if (!Util.isEmpty(bp.getAD_Language()))
+					lang = Language.getLanguage(bp.getAD_Language());
+				format.setLanguage(lang);
 				re = new ReportEngine(getCtx(), format, query, info);
+			}
 			boolean printed = false;
 			if (p_EMailPDF)
 			{

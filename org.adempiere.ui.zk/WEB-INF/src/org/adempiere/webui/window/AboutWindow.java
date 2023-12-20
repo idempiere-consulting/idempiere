@@ -85,7 +85,7 @@ import org.zkoss.zul.Vbox;
  */
 public class AboutWindow extends Window implements EventListener<Event> {
 	/**
-	 * 
+	 * generated serial id
 	 */
 	private static final long serialVersionUID = -4235323239552159150L;
 
@@ -107,11 +107,17 @@ public class AboutWindow extends Window implements EventListener<Event> {
 
 	private Listbox levelListBox;
 
+	/**
+	 * Default constructor
+	 */
 	public AboutWindow() {
 		super();
 		init();
 	}
 
+	/**
+	 * Layout dialog
+	 */
 	private void init() {
 
 		System.runFinalization();
@@ -173,6 +179,10 @@ public class AboutWindow extends Window implements EventListener<Event> {
 		this.setAttribute(Window.MODE_KEY, Window.MODE_HIGHLIGHTED);
 	}
 	
+	/**
+	 * Create tab panels
+	 * @param tabs
+	 */
 	protected void initTabs(Tabs tabs) {
 		//about
 		Tab tab = new Tab();
@@ -205,6 +215,10 @@ public class AboutWindow extends Window implements EventListener<Event> {
 
 	}
 
+	/**
+	 * Tab panel for trace levels and list of messages for the selected trace level
+	 * @return tab panel
+	 */
 	protected Tabpanel createTrace() {
 		Tabpanel tabPanel = new Tabpanel();
 		Vbox vbox = new Vbox();
@@ -317,6 +331,9 @@ public class AboutWindow extends Window implements EventListener<Event> {
 		return tabPanel;
 	}
 
+	/**
+	 * Update log messages table for trace tab.
+	 */
 	private void updateLogTable() {
 		Vector<Vector<Object>> data = CLogErrorBuffer.get(true).getLogData(bErrorsOnly.isChecked());
 		SimpleListModel model = new SimpleListModel(data);
@@ -329,6 +346,10 @@ public class AboutWindow extends Window implements EventListener<Event> {
 			tabLog.setLabel(Msg.getMsg(Env.getCtx(), "TraceInfo") + " (" + data.size() + ")");
 	}
 
+	/**
+	 * Tab panel for system info
+	 * @return tab panel
+	 */
 	protected Tabpanel createInfo() {
 		Tabpanel tabPanel = new Tabpanel();
 		Div div = new Div();
@@ -359,6 +380,10 @@ public class AboutWindow extends Window implements EventListener<Event> {
 		return tabPanel;
 	}
 
+	/**
+	 * Tab panel for credit
+	 * @return tab panel
+	 */
 	protected Tabpanel createCredit() {
 		Tabpanel tabPanel = new Tabpanel();
 		String fileName = Adempiere.getAdempiereHome() + File.separator + "Credits.html";
@@ -382,6 +407,10 @@ public class AboutWindow extends Window implements EventListener<Event> {
 		return tabPanel;
 	}
 
+	/**
+	 * Tab panel for general info and links
+	 * @return tab panel
+	 */
 	protected Tabpanel createAbout() {
 		Tabpanel tabPanel = new Tabpanel();
 
@@ -444,10 +473,19 @@ public class AboutWindow extends Window implements EventListener<Event> {
 		link.setHref("http://groups.google.com/group/idempiere");
 		link.setTarget("_blank");
 		link.setParent(vbox);
+		
+		separator = new Separator();
+		separator.setParent(vbox);
+		link = new ToolBarButton();
+		link.setLabel("Online Support");
+		link.setHref("https://mattermost.idempiere.org");
+		link.setTarget("_blank");
+		link.setParent(vbox);
 
 		return tabPanel;
 	}
 
+	@Override
 	public void onEvent(Event event) throws Exception {
 		if (event.getTarget() == bErrorsOnly) {
 			this.updateLogTable();
@@ -468,6 +506,9 @@ public class AboutWindow extends Window implements EventListener<Event> {
 			this.detach();
 	}
 
+	/**
+	 * Reload log properties
+	 */
 	private void reloadLogProps() {
 		Properties props = new Properties();
 		String propertyFileName = Ini.getFileName(false);
@@ -515,6 +556,9 @@ public class AboutWindow extends Window implements EventListener<Event> {
 		}
 	}
 
+	/**
+	 * Change trace/log level
+	 */
 	private void setTraceLevel() {
 		Listitem item = levelListBox.getSelectedItem();
 		if (item != null && item.getValue() != null) {
@@ -525,6 +569,9 @@ public class AboutWindow extends Window implements EventListener<Event> {
 		}
 	}
 
+	/**
+	 * Download iDempiere log file
+	 */
 	private void downloadAdempiereLogFile() {
 		String path = Ini.getAdempiereHome() + File.separator + "log";
 		final FolderBrowser fileBrowser = new FolderBrowser(path, false);
@@ -546,12 +593,18 @@ public class AboutWindow extends Window implements EventListener<Event> {
 		});
 	}
 
+	/**
+	 * Download current log messages
+	 */
 	private void downloadLog() {
 		String log = CLogErrorBuffer.get(true).getErrorInfo(Env.getCtx(), bErrorsOnly.isChecked());
 		AMedia media = new AMedia("trace.log", null, "text/plain", log.getBytes());
 		Filedownload.save(media);
 	}
 
+	/**
+	 * View current log messages
+	 */
 	private void viewLog() {
 		String log = CLogErrorBuffer.get(true).getErrorInfo(Env.getCtx(), bErrorsOnly.isChecked());
 		Window w = new Window();
@@ -572,7 +625,7 @@ public class AboutWindow extends Window implements EventListener<Event> {
 	}
 
 	/**
-	 * 	EMail Errors
+	 * 	EMail errors to support
 	 */
 	private void cmd_errorEMail()
 	{

@@ -81,6 +81,9 @@ public class DrillReportCtl {
 
 	private String m_DisplayValue;
 
+	/** Process ID of the source Report */
+	private int m_AD_Process_ID;
+
 	/** Drill Tables Map */
 	private KeyNamePair[] drillTables;
 
@@ -95,20 +98,21 @@ public class DrillReportCtl {
 
 	/**
 	 *
-	 * @param ctx
 	 * @param TableName
 	 * @param query
 	 * @param ColumnName
 	 * @param Value
 	 * @param displayValue
 	 * @param WindowNo
+	 * @param processID
 	 */
-	public DrillReportCtl(String TableName, MQuery query, String ColumnName, Object Value, String displayValue, int WindowNo) {
+	public DrillReportCtl(String TableName, MQuery query, String ColumnName, Object Value, String displayValue, int WindowNo, int processID) {
 		this.m_TableName = TableName;
 		this.m_ColumnName = ColumnName;
 		this.m_Value = Value;
 		this.m_WindowNo = WindowNo;
 		this.m_DisplayValue = displayValue;
+		this.m_AD_Process_ID = processID;
 
 		m_Query = query;
 
@@ -179,9 +183,9 @@ public class DrillReportCtl {
 		if(!Util.isEmpty(m_ColumnName)) {
 			MProcessDrillRule[] processDrillRules = MProcessDrillRule.getByColumnName(Env.getCtx(), m_ColumnName, null);
 			for( MProcessDrillRule drillProcesRule: processDrillRules) {
-				MProcess process = MProcess.get(drillProcesRule.getAD_Process_ID());
-				if(process == null)
+				if (drillProcesRule.getAD_Process_ID() == 0 || drillProcesRule.getAD_Process_ID() == m_AD_Process_ID)
 					continue;
+				MProcess process = MProcess.get(drillProcesRule.getAD_Process_ID());
 
 				drillProcessMap.put(drillProcesRule.getAD_Process_ID(), process.get_Translation(MProcess.COLUMNNAME_Name));
 
@@ -213,27 +217,38 @@ public class DrillReportCtl {
 	 */
 	public void initDrillTableMap() {
 
+		MRole defaultRole = MRole.getDefault();
+
+		StringBuilder rolesId = new StringBuilder();
+		rolesId.append(defaultRole.get_ID());
+		defaultRole.getIncludedRoles(true).forEach(role -> rolesId.append(",").append(role.get_ID()));
+
 		ArrayList<KeyNamePair> drillTableList = new ArrayList<>();
-		String sql = "SELECT t.AD_Table_ID, t.TableName, e.PrintName, NULLIF(e.PO_PrintName,e.PrintName) "
+		String sql = "SELECT DISTINCT t.AD_Table_ID, t.TableName, e.PrintName, NULLIF(e.PO_PrintName,e.PrintName) "
 				+ "FROM AD_Column c "
 				+ " INNER JOIN AD_Column used ON (c.ColumnName=used.ColumnName)"
 				+ " INNER JOIN AD_Table t ON (used.AD_Table_ID=t.AD_Table_ID AND t.IsView='N' AND t.AD_Table_ID <> c.AD_Table_ID AND t.IsShowInDrillOptions='Y')"
+				+ " INNER JOIN AD_Tab tab ON (t.AD_Table_ID = tab.AD_Table_ID AND tab.isActive = 'Y') "
+				+ " INNER JOIN AD_Window_Access w ON (tab.AD_Window_ID = w.AD_Window_ID AND w.isActive = 'Y') "
 				+ " INNER JOIN AD_Column cKey ON (t.AD_Table_ID=cKey.AD_Table_ID AND cKey.IsKey='Y')"
 				+ " INNER JOIN AD_Element e ON (cKey.ColumnName=e.ColumnName) "
-				+ "WHERE c.AD_Table_ID=? AND c.IsKey='Y' "
+				+ "WHERE c.AD_Table_ID=? AND w.AD_Role_ID IN (" + rolesId.toString() + ") AND c.IsKey='Y' "
 				+ "ORDER BY 3 ";
 			boolean trl = !Env.isBaseLanguage(Env.getCtx(), "AD_Element");
 			if (trl)
-				sql = "SELECT t.AD_Table_ID, t.TableName, et.PrintName, NULLIF(et.PO_PrintName,et.PrintName) "
+				sql = "SELECT DISTINCT t.AD_Table_ID, t.TableName, et.PrintName, NULLIF(et.PO_PrintName,et.PrintName) "
 					+ "FROM AD_Column c"
 					+ " INNER JOIN AD_Column used ON (c.ColumnName=used.ColumnName)"
 					+ " INNER JOIN AD_Table t ON (used.AD_Table_ID=t.AD_Table_ID AND t.IsView='N' AND t.AD_Table_ID <> c.AD_Table_ID AND t.IsShowInDrillOptions='Y')"
+					+ " INNER JOIN AD_Tab tab ON (t.AD_Table_ID = tab.AD_Table_ID AND tab.isActive = 'Y') "
+					+ " INNER JOIN AD_Window_Access w ON (tab.AD_Window_ID = w.AD_Window_ID AND w.isActive = 'Y') "
 					+ " INNER JOIN AD_Column cKey ON (t.AD_Table_ID=cKey.AD_Table_ID AND cKey.IsKey='Y')"
 					+ " INNER JOIN AD_Element e ON (cKey.ColumnName=e.ColumnName)"
 					+ " INNER JOIN AD_Element_Trl et ON (e.AD_Element_ID=et.AD_Element_ID) "
-					+ "WHERE c.AD_Table_ID=? AND c.IsKey='Y'"
+					+ "WHERE c.AD_Table_ID=? AND w.AD_Role_ID IN (" + rolesId.toString() + ") AND c.IsKey='Y' "
 					+ " AND et.AD_Language=? "
 					+ "ORDER BY 3 ";
+
 		PreparedStatement pstmt = null;
 		ResultSet rs = null;
 		try
@@ -499,6 +514,7 @@ public class DrillReportCtl {
 				iPara.setParameter(DisplayType.isID(sPara.getDisplayType()) ? new BigDecimal(String.valueOf(m_Value)) : String.valueOf(m_Value));
 				iPara.setInfo(!Util.isEmpty(m_DisplayValue) ? m_DisplayValue : String.valueOf(m_Value));
 				iParams.add(iPara);
+				processParasExclDrillRuleParas.remove(processPara);
 				continue;
 			}
 
@@ -585,7 +601,8 @@ public class DrillReportCtl {
 						+ " (=" + value + "=) " + value.getClass().getName());
 				}
 				// Mandatory check
-				if(processPara.isMandatory() && Util.isEmpty(sPara.getParameterDefault())) {
+				if(processPara.isMandatory() && Util.isEmpty(sPara.getParameterDefault()) 
+						&& !MProcessDrillRule.SHOWHELP_ShowHelp.equalsIgnoreCase(processDrillRule.getShowHelp())) {
 					if((!processPara.isRange()) || (processPara.isRange() && Util.isEmpty(sPara.getParameterToDefault())))
 						throw new AdempiereException(Msg.parseTranslation(Env.getCtx(), "@FillMandatoryDrillRulePara@"));
 				}
@@ -602,9 +619,11 @@ public class DrillReportCtl {
 		}	//	Drill Rule Parameter loop
 		
 		// Mandatory check
-		for(MProcessPara unsetProcessPara : processParasExclDrillRuleParas) {
-			if(unsetProcessPara.isMandatory()) {
-				throw new AdempiereException(Msg.parseTranslation(Env.getCtx(), "@FillMandatoryDrillRulePara@"));
+		if(!MProcessDrillRule.SHOWHELP_ShowHelp.equalsIgnoreCase(processDrillRule.getShowHelp())) {
+			for(MProcessPara unsetProcessPara : processParasExclDrillRuleParas) {
+				if(unsetProcessPara.isMandatory()) {
+					throw new AdempiereException(Msg.parseTranslation(Env.getCtx(), "@FillMandatoryDrillRulePara@"));
+				}
 			}
 		}
 		pi.setParameter(iParams.toArray(new ProcessInfoParameter[0]));

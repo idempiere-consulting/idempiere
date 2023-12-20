@@ -36,6 +36,7 @@ import org.compiere.model.MUserPreference;
 import org.compiere.model.SystemIDs;
 import org.compiere.util.CLogger;
 import org.compiere.util.Env;
+import org.compiere.util.Ini;
 import org.compiere.util.Msg;
 import org.zkoss.zk.ui.Component;
 import org.zkoss.zk.ui.event.Event;
@@ -44,14 +45,14 @@ import org.zkoss.zk.ui.event.Events;
 import org.zkoss.zul.A;
 import org.zkoss.zul.Div;
 import org.zkoss.zul.Space;
+
 /**
- *
+ * User preference dialog
  * @author hengsin
- *
  */
 public class WPreference extends WQuickEntry implements EventListener<Event>, ValueChangeListener {	
 	/**
-	 * 
+	 * generated serial id
 	 */
 	private static final long serialVersionUID = 3259434079666571595L;
 	private static final CLogger log = CLogger.getCLogger(WPreference.class);
@@ -67,7 +68,9 @@ public class WPreference extends WQuickEntry implements EventListener<Event>, Va
 	private MUserPreference preferences = null;
 	private int             recordId    = 0;
 
-
+	/**
+	 * Default constructor
+	 */
 	public WPreference() {
 		super(Env.getZoomWindowID(MUserPreference.Table_ID, 0));
 
@@ -90,13 +93,21 @@ public class WPreference extends WQuickEntry implements EventListener<Event>, Va
 		this.setTitle("");
 	} //WPreference
 
+	/**
+	 * Load user preferences
+	 */
 	private void loadPreferences(){
 		preferences = MUserPreference.getUserPreference(Env.getAD_User_ID(Env.getCtx()), Env.getAD_Client_ID(Env.getCtx()));
 		recordId = preferences.get_ID();
 
-		loadRecord(recordId);
+		if(getQuickFields()>0)
+			loadRecord(recordId);
 	} //loadPreferences
 
+	/**
+	 * Layout dialog
+	 * @throws Exception
+	 */
 	protected void jbInit() throws Exception
 	{
 		ZKUpdateUtil.setWidth(this, "230px");
@@ -107,6 +118,9 @@ public class WPreference extends WQuickEntry implements EventListener<Event>, Va
 		init();
 	} //jbInit
 
+	/**
+	 * Layout dialog
+	 */
 	private void init() {
 
 		Div div = new Div();
@@ -136,24 +150,24 @@ public class WPreference extends WQuickEntry implements EventListener<Event>, Va
 
 		if (Env.getAD_Client_ID(Env.getCtx()) <= 20 && Env.getAD_User_ID(Env.getCtx()) <= 102) {
 			this.appendChild(new Space());
-			adempiereSys = new WYesNoEditor("AdempiereSys", Msg.getMsg(Env.getCtx(), "AdempiereSys", true),
+			adempiereSys = new WYesNoEditor(Ini.P_ADEMPIERESYS, Msg.getMsg(Env.getCtx(), Ini.P_ADEMPIERESYS, true),
 					null, false, false, true);
-			adempiereSys.getComponent().setTooltiptext(Msg.getMsg(Env.getCtx(), "AdempiereSys", false));
+			adempiereSys.getComponent().setTooltiptext(Msg.getMsg(Env.getCtx(), Ini.P_ADEMPIERESYS, false));
 			div = new Div();
 			div.setStyle(LINE_DIV_STYLE);
 			div.appendChild(adempiereSys.getComponent());
 			this.appendChild(div);
-			adempiereSys.setValue(Env.getCtx().getProperty("AdempiereSys"));
+			adempiereSys.setValue(Env.getCtx().getProperty(Ini.P_ADEMPIERESYS));
 			adempiereSys.addValueChangeListener(this);
 
-			logMigrationScript = new WYesNoEditor("LogMigrationScript", Msg.getMsg(Env.getCtx(), "LogMigrationScript", true),
+			logMigrationScript = new WYesNoEditor(Ini.P_LOGMIGRATIONSCRIPT, Msg.getMsg(Env.getCtx(), Ini.P_LOGMIGRATIONSCRIPT, true),
 					null, false, false, true);
-			logMigrationScript.getComponent().setTooltiptext(Msg.getMsg(Env.getCtx(), "LogMigrationScript", false));
+			logMigrationScript.getComponent().setTooltiptext(Msg.getMsg(Env.getCtx(), Ini.P_LOGMIGRATIONSCRIPT, false));
 			div = new Div();
 			div.setStyle(LINE_DIV_STYLE);
 			div.appendChild(logMigrationScript.getComponent());
 			this.appendChild(div);
-			logMigrationScript.setValue(Env.getCtx().getProperty("LogMigrationScript"));
+			logMigrationScript.setValue(Env.getCtx().getProperty(Ini.P_LOGMIGRATIONSCRIPT));
 			logMigrationScript.addValueChangeListener(this);			
 		}
 
@@ -175,6 +189,9 @@ public class WPreference extends WQuickEntry implements EventListener<Event>, Va
 
 	} //init
 
+	/**
+	 * Move field editor for migration script comment next to {@link #logMigrationScript}.
+	 */
 	private void moveMigrationScriptComment() {
 		if (logMigrationScript == null)
 			return;
@@ -207,6 +224,7 @@ public class WPreference extends WQuickEntry implements EventListener<Event>, Va
 		}
 	}
 
+	@Override
 	public void onEvent(Event event) throws Exception {
 		String nameEvent=event.getName();
 		Component com =event.getTarget();
@@ -245,32 +263,36 @@ public class WPreference extends WQuickEntry implements EventListener<Event>, Va
 		}
 	} //onEvent
 
+	/**
+	 * Save changes
+	 */
 	private void onSave() {
 		actionSave();
 
 		// Log Migration Script and AdempiereSys are just in-memory preferences, must not be saved
 		if (logMigrationScript != null) {
-			Env.getCtx().setProperty("LogMigrationScript", (Boolean)logMigrationScript.getValue() ? "Y" : "N");
-			Env.getCtx().setProperty("P|LogMigrationScript", (Boolean)logMigrationScript.getValue() ? "Y" : "N");
+			Env.getCtx().setProperty(Ini.P_LOGMIGRATIONSCRIPT, (Boolean)logMigrationScript.getValue() ? "Y" : "N");
+			Env.getCtx().setProperty("P|"+Ini.P_LOGMIGRATIONSCRIPT, (Boolean)logMigrationScript.getValue() ? "Y" : "N");
 		}
 		if (adempiereSys != null) {
-			Env.getCtx().setProperty("AdempiereSys", (Boolean)adempiereSys.getValue() ? "Y" : "N");
-			Env.getCtx().setProperty("P|AdempiereSys", (Boolean)adempiereSys.getValue() ? "Y" : "N");
+			Env.getCtx().setProperty(Ini.P_ADEMPIERESYS, (Boolean)adempiereSys.getValue() ? "Y" : "N");
+			Env.getCtx().setProperty("P|"+Ini.P_ADEMPIERESYS, (Boolean)adempiereSys.getValue() ? "Y" : "N");
 		}
 
 		this.detach();
 	} //onSave
 
+	@Override
 	public void valueChange(ValueChangeEvent evt) {
 		if (evt.getSource() instanceof WYesNoEditor) {
 			// Log Migration Script and AdempiereSys are just in-memory preferences, set them without need to save
 			if (evt.getSource() == logMigrationScript) {
-				Env.getCtx().setProperty("LogMigrationScript", (Boolean)logMigrationScript.getValue() ? "Y" : "N");
-				Env.getCtx().setProperty("P|LogMigrationScript", (Boolean)logMigrationScript.getValue() ? "Y" : "N");
+				Env.getCtx().setProperty(Ini.P_LOGMIGRATIONSCRIPT, (Boolean)logMigrationScript.getValue() ? "Y" : "N");
+				Env.getCtx().setProperty("P|"+Ini.P_LOGMIGRATIONSCRIPT, (Boolean)logMigrationScript.getValue() ? "Y" : "N");
 				dynamicDisplay();
 			} else if (evt.getSource() == adempiereSys) {
-				Env.getCtx().setProperty("AdempiereSys", (Boolean)adempiereSys.getValue() ? "Y" : "N");
-				Env.getCtx().setProperty("P|AdempiereSys", (Boolean)adempiereSys.getValue() ? "Y" : "N");
+				Env.getCtx().setProperty(Ini.P_ADEMPIERESYS, (Boolean)adempiereSys.getValue() ? "Y" : "N");
+				Env.getCtx().setProperty("P|"+Ini.P_ADEMPIERESYS, (Boolean)adempiereSys.getValue() ? "Y" : "N");
 			}
 		}
 		super.valueChange(evt);

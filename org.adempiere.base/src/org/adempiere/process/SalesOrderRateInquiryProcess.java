@@ -29,6 +29,7 @@ import org.adempiere.util.ShippingUtil;
 import org.compiere.model.MClientInfo;
 import org.compiere.model.MOrder;
 import org.compiere.model.MOrderLine;
+import org.compiere.model.MProcessPara;
 import org.compiere.model.MProduct;
 import org.compiere.model.MShipper;
 import org.compiere.model.MShipperLabels;
@@ -44,7 +45,7 @@ import org.compiere.process.SvrProcess;
 import org.compiere.util.DisplayType;
 
 /**
- * 
+ * Shipping rate inquiry for sales order
  * @author Elaine
  *
  */
@@ -65,7 +66,7 @@ public class SalesOrderRateInquiryProcess extends SvrProcess
 			else if (name.equals(MShippingTransaction.COLUMNNAME_IsPriviledgedRate))
 				p_IsPriviledgedRate = ((String)para[i].getParameter()).equals("Y");
 			else
-				log.log(Level.SEVERE, "prepare - Unknown Parameter: " + name);
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), para[i]);
 		}
     }
 	
@@ -187,6 +188,15 @@ public class SalesOrderRateInquiryProcess extends SvrProcess
 		return "@OK@";
 	}
 	
+	/**
+	 * Create MShippingTransaction record for order.
+	 * @param ctx
+	 * @param m_order
+	 * @param action
+	 * @param isPriviledgedRate
+	 * @param trxName
+	 * @return MShippingTransaction
+	 */
 	public static MShippingTransaction createShippingTransaction(Properties ctx, MOrder m_order, String action, boolean isPriviledgedRate, String trxName)
 	{
 		MShipper shipper = new MShipper(ctx, m_order.getM_Shipper_ID(), trxName);

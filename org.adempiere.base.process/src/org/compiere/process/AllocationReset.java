@@ -23,6 +23,7 @@ import java.util.logging.Level;
 
 import org.adempiere.exceptions.AdempiereException;
 import org.compiere.model.MAllocationHdr;
+import org.compiere.model.MProcessPara;
 import org.compiere.util.AdempiereUserError;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
@@ -79,7 +80,7 @@ public class AllocationReset extends SvrProcess
 			else if (name.equals("AllAllocations"))
 				p_AllAllocations = "Y".equals(para[i].getParameter());
 			else
-				log.log(Level.SEVERE, "Unknown Parameter: " + name);
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), para[i]);
 		}
 		
 		if ( !p_AllAllocations && getTable_ID() == MAllocationHdr.Table_ID && getRecord_ID() > 0 )
@@ -110,12 +111,15 @@ public class AllocationReset extends SvrProcess
 
 		if (p_C_AllocationHdr_ID != 0)
 		{
-			MAllocationHdr hdr = new MAllocationHdr(getCtx(), p_C_AllocationHdr_ID, m_trx.getTrxName());
-			if (delete(hdr))
-				count++;
-			else
-				throw new AdempiereException("Cannot delete");
-			m_trx.close();
+			try {
+				MAllocationHdr hdr = new MAllocationHdr(getCtx(), p_C_AllocationHdr_ID, m_trx.getTrxName());
+				if (delete(hdr))
+					count++;
+				else
+					throw new AdempiereException("Cannot delete");
+			} finally {
+				m_trx.close();
+			}
 			StringBuilder msgreturn = new StringBuilder("@Deleted@ #").append(count);
 			return msgreturn.toString();
 		}
@@ -175,8 +179,8 @@ public class AllocationReset extends SvrProcess
 		{
 			DB.close(rs, pstmt);
 			rs = null; pstmt = null;
+			m_trx.close();
 		}
-		m_trx.close();
 		StringBuilder msgreturn = new StringBuilder("@Deleted@ #").append(count);
 		return msgreturn.toString();
 	}	//	doIt

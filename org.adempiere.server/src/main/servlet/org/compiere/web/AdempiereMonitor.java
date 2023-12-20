@@ -74,6 +74,7 @@ import org.compiere.model.MSession;
 import org.compiere.model.MSysConfig;
 import org.compiere.model.MSystem;
 import org.compiere.model.Query;
+import org.compiere.model.SystemIDs;
 import org.compiere.server.AdempiereServerGroup;
 import org.compiere.server.AdempiereServerMgr;
 import org.compiere.server.IServerManager;
@@ -1188,7 +1189,7 @@ public class AdempiereMonitor extends HttpServlet
 		//
 		line = new tr();
 		line.addElement(new th().addElement("Trace File"));
-		line.addElement(new td().addElement(new a ("idempiereMonitor?Trace=" + systemInfo.getCurrentLogFile(), "Current")));
+		line.addElement(new td().addElement(new a ("idempiereMonitor?Trace=" + systemInfo.getCurrentLogFile(), "Current", "Current", "Current")));
 		table.addElement(line);
 		//
 		line = new tr();
@@ -1217,7 +1218,7 @@ public class AdempiereMonitor extends HttpServlet
 			int index = fileName.lastIndexOf(File.separator);
 			if (index > 1)
 				displayName = fileName.substring(index+1);
-			a link = new a ("idempiereMonitor?Trace=" + fileName, displayName);
+			a link = new a ("idempiereMonitor?Trace=" + fileName, displayName, displayName, displayName);
 			p.addElement(link);
 			int size = (int)(logFile.getFileSize()/1024);
 			if (size < 1024)
@@ -1344,7 +1345,7 @@ public class AdempiereMonitor extends HttpServlet
 			try {
 				Properties ctx = new Properties();
 				Env.setContext(ctx, Env.AD_CLIENT_ID, 0);
-				Env.setContext(ctx, Env.AD_USER_ID, 0);
+				Env.setContext(ctx, Env.AD_USER_ID, SystemIDs.USER_SYSTEM);
 				ServerContext.setCurrentInstance(ctx);
 				
 				int maxSecondsToWait = MSysConfig.getIntValue(MSysConfig.MONITOR_MAX_WAIT_FOR_CLUSTER_IN_SECONDS, 180);			

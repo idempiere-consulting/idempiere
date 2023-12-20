@@ -32,6 +32,8 @@ import java.util.Vector;
 import java.util.logging.Level;
 
 import org.adempiere.base.Core;
+import org.adempiere.base.CreditStatus;
+import org.adempiere.base.ICreditManager;
 import org.adempiere.exceptions.AdempiereException;
 import org.adempiere.exceptions.BPartnerNoAddressException;
 import org.adempiere.exceptions.DBException;
@@ -50,16 +52,17 @@ import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
 import org.compiere.util.Msg;
 import org.compiere.util.TimeUtil;
+import org.compiere.util.Util;
 import org.eevolution.model.MPPProductBOM;
 import org.eevolution.model.MPPProductBOMLine;
 
-
 /**
+ *  <pre>
  *	Invoice Model.
  * 	Please do not set DocStatus and C_DocType_ID directly.
  * 	They are set in the process() method.
  * 	Use DocAction and C_DocTypeTarget_ID instead.
- *
+ *  </pre>
  *  @author Jorg Janke
  *  @version $Id: MInvoice.java,v 1.2 2006/07/30 00:51:02 jjanke Exp $
  *  @author victor.perez@e-evolution.com, e-Evolution http://www.e-evolution.com
@@ -72,16 +75,137 @@ import org.eevolution.model.MPPProductBOMLine;
 public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 {
 	/**
-	 * 
+	 * generated serial id
 	 */
 	private static final long serialVersionUID = 9166700544471146864L;
 
+	public static final String MATCH_TO_RECEIPT_SQL =
+			"""
+				SELECT hdr.C_Invoice_ID, hdr.DocumentNo, hdr.DateInvoiced, bp.Name, hdr.C_BPartner_ID,
+				lin.Line, lin.C_InvoiceLine_ID, p.Name, lin.M_Product_ID,
+				CASE WHEN dt.DocBaseType='APC' THEN lin.QtyInvoiced * -1 ELSE lin.QtyInvoiced END,SUM(NVL(mi.Qty,0)), org.Name, hdr.AD_Org_ID
+				 FROM C_Invoice hdr 
+				 INNER JOIN AD_Org org ON (hdr.AD_Org_ID=org.AD_Org_ID)
+				 INNER JOIN C_BPartner bp ON (hdr.C_BPartner_ID=bp.C_BPartner_ID)
+				 INNER JOIN C_InvoiceLine lin ON (hdr.C_Invoice_ID=lin.C_Invoice_ID)
+				 INNER JOIN M_Product p ON (lin.M_Product_ID=p.M_Product_ID)
+				 INNER JOIN C_DocType dt ON (hdr.C_DocType_ID=dt.C_DocType_ID AND dt.DocBaseType IN ('API','APC'))
+				 FULL JOIN M_MatchInv mi ON (lin.C_InvoiceLine_ID=mi.C_InvoiceLine_ID)
+				 WHERE hdr.DocStatus IN ('CO','CL')
+			""";
+	
+	/** Matching to Receipt Group By Template */
+	private static final String BASE_MATCHING_GROUP_BY_SQL =
+			"""
+				GROUP BY hdr.C_Invoice_ID,hdr.DocumentNo,hdr.DateInvoiced,bp.Name,hdr.C_BPartner_ID,
+				lin.Line,lin.C_InvoiceLine_ID,p.Name,lin.M_Product_ID,dt.DocBaseType,lin.QtyInvoiced, org.Name, hdr.AD_Org_ID, dt.DocBaseType 
+				HAVING %s <> SUM(NVL(mi.Qty,0))
+			""";
+	public static final String NOT_FULLY_MATCHED_TO_RECEIPT_GROUP_BY = BASE_MATCHING_GROUP_BY_SQL
+				.formatted("CASE WHEN dt.DocBaseType='APC' THEN lin.QtyInvoiced * -1 ELSE lin.QtyInvoiced END");
+	
+	public static final String FULL_OR_PARTIALLY_MATCHED_TO_RECEIPT_GROUP_BY = BASE_MATCHING_GROUP_BY_SQL.formatted("0");
+	
 	/**
-	 * 	Get Payments Of BPartner
+	 * @param C_BPartner_ID
+	 * @param M_Product_ID
+	 * @param M_InOutLine_ID
+	 * @param from
+	 * @param to
+	 * @param trxName
+	 * @return list of invoices not fully matched to receipt
+	 */
+	public static List<MatchingRecord> getNotFullyMatchedToReceipt(int C_BPartner_ID, int M_Product_ID, int M_InOutLine_ID, Timestamp from, Timestamp to, String trxName) {
+		StringBuilder builder = new StringBuilder(MATCH_TO_RECEIPT_SQL);
+		if (M_InOutLine_ID > 0) {
+			builder.append(" AND mi.M_InOutLine_ID = ").append(M_InOutLine_ID);
+		}
+		if (M_Product_ID > 0) {
+			builder.append(" AND lin.M_Product_ID=").append(M_Product_ID);
+		}
+		if (C_BPartner_ID > 0) {
+			builder.append(" AND hdr.C_BPartner_ID=").append(C_BPartner_ID);
+		}
+		if (from != null) {
+			builder.append(" AND ").append("hdr.DateInvoiced").append(" >= ").append(DB.TO_DATE(from));
+		}
+		if (to != null) {
+			builder.append(" AND ").append("hdr.DateInvoiced").append(" <= ").append(DB.TO_DATE(to));
+		}
+		String sql = MRole.getDefault().addAccessSQL(
+				builder.toString(), "hdr", MRole.SQL_FULLYQUALIFIED, MRole.SQL_RO)
+				+ NOT_FULLY_MATCHED_TO_RECEIPT_GROUP_BY;
+		
+		List<MatchingRecord> records = new ArrayList<>();
+		try (PreparedStatement stmt = DB.prepareStatement(sql, trxName)) {
+			ResultSet rs = stmt.executeQuery();
+			while (rs.next()) {
+				MatchingRecord matchingRecord = new MatchingRecord(rs.getInt(1), rs.getString(2), rs.getTimestamp(3), rs.getString(4), rs.getInt(5), rs.getInt(6), rs.getInt(7), 
+						rs.getString(8), rs.getInt(9), rs.getBigDecimal(10), rs.getBigDecimal(11), rs.getString(12), rs.getInt(13));
+				records.add(matchingRecord);
+			}
+		} catch (SQLException e) {
+			throw new DBException(e.getMessage(), e);
+		}
+		return records;
+	}
+	
+	/**
+	 * @param C_BPartner_ID
+	 * @param M_Product_ID
+	 * @param M_InOutLine_ID
+	 * @param from
+	 * @param to
+	 * @param trxName
+	 * @return list of invoices full or partially match to receipt 
+	 */
+	public static List<MatchingRecord> getFullOrPartiallyMatchedToReceipt(int C_BPartner_ID, int M_Product_ID, int M_InOutLine_ID, Timestamp from, Timestamp to, String trxName) {
+		StringBuilder builder = new StringBuilder(MATCH_TO_RECEIPT_SQL);
+		if (M_InOutLine_ID > 0) {
+			builder.append(" AND mi.M_InOutLine_ID = ").append(M_InOutLine_ID);
+		}
+		if (M_Product_ID > 0) {
+			builder.append(" AND lin.M_Product_ID=").append(M_Product_ID);
+		}
+		if (C_BPartner_ID > 0) {
+			builder.append(" AND hdr.C_BPartner_ID=").append(C_BPartner_ID);
+		}
+		if (from != null) {
+			builder.append(" AND ").append("hdr.DateInvoiced").append(" >= ").append(DB.TO_DATE(from));
+		}
+		if (to != null) {
+			builder.append(" AND ").append("hdr.DateInvoiced").append(" <= ").append(DB.TO_DATE(to));
+		}
+		String sql = MRole.getDefault().addAccessSQL(
+				builder.toString(), "hdr", MRole.SQL_FULLYQUALIFIED, MRole.SQL_RO)
+				+ FULL_OR_PARTIALLY_MATCHED_TO_RECEIPT_GROUP_BY;
+		
+		List<MatchingRecord> records = new ArrayList<>();
+		try (PreparedStatement stmt = DB.prepareStatement(sql, trxName)) {
+			ResultSet rs = stmt.executeQuery();
+			while (rs.next()) {
+				MatchingRecord matchingRecord = new MatchingRecord(rs.getInt(1), rs.getString(2), rs.getTimestamp(3), rs.getString(4), rs.getInt(5), rs.getInt(6), rs.getInt(7), 
+						rs.getString(8), rs.getInt(9), rs.getBigDecimal(10), rs.getBigDecimal(11), rs.getString(12), rs.getInt(13));
+				records.add(matchingRecord);
+			}
+		} catch (SQLException e) {
+			throw new DBException(e.getMessage(), e);
+		}
+		return records;
+	}
+	
+	/**
+	 * record for matchings
+	 */
+	public static record MatchingRecord(int C_Invoice_ID, String documentNo, Timestamp documentDate, String businessPartnerName, int C_BPartner_ID, int line, int C_InvoiceLine_ID,
+			String productName, int M_Product_ID, BigDecimal qtyInvoiced, BigDecimal matchedQty, String organizationName, int AD_Org_ID) {}
+	
+	/**
+	 * 	Get invoices Of BPartner
 	 *	@param ctx context
 	 *	@param C_BPartner_ID id
 	 *	@param trxName transaction
-	 *	@return array
+	 *	@return array of invoice
 	 */
 	public static MInvoice[] getOfBPartner (Properties ctx, int C_BPartner_ID, String trxName)
 	{
@@ -215,6 +339,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	@param setOrder set Order links
 	 *	@return Invoice
 	 */
+	@Deprecated
 	public static MInvoice copyFrom (MInvoice from, Timestamp dateDoc,
 		int C_DocTypeTarget_ID, boolean isSOTrx, boolean counter,
 		String trxName, boolean setOrder)
@@ -245,7 +370,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}	//	getPDFFileName
 
 	/**
-	 * 	Get MInvoice from db
+	 * 	Get MInvoice from DB
 	 *	@param C_Invoice_ID id
 	 *	@return MInvoice
 	 */
@@ -255,7 +380,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}
 	
 	/**
-	 * 	Get MInvoice from db
+	 * 	Get MInvoice from DB
 	 *	@param C_Invoice_ID id
 	 *	@return MInvoice
 	 */
@@ -269,7 +394,19 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		return null;
 	} //	get
 
-	/**************************************************************************
+    /**
+     * UUID based Constructor
+     * @param ctx  Context
+     * @param C_Invoice_UU  UUID key
+     * @param trxName Transaction
+     */
+    public MInvoice(Properties ctx, String C_Invoice_UU, String trxName) {
+        super(ctx, C_Invoice_UU, trxName);
+		if (Util.isEmpty(C_Invoice_UU))
+			setInitialDefaults();
+    }
+
+	/**
 	 * 	Invoice Constructor
 	 * 	@param ctx context
 	 * 	@param C_Invoice_ID invoice or 0 for new
@@ -280,37 +417,48 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		this (ctx, C_Invoice_ID, trxName, (String[]) null);
 	}	//	MInvoice
 
+	/**
+	 * @param ctx
+	 * @param C_Invoice_ID
+	 * @param trxName
+	 * @param virtualColumns
+	 */
 	public MInvoice(Properties ctx, int C_Invoice_ID, String trxName, String... virtualColumns) {
 		super(ctx, C_Invoice_ID, trxName, virtualColumns);
 		if (C_Invoice_ID == 0)
-		{
-			setDocStatus (DOCSTATUS_Drafted);		//	Draft
-			setDocAction (DOCACTION_Complete);
-			//
-			setPaymentRule(PAYMENTRULE_OnCredit);	//	Payment Terms
+			setInitialDefaults();
+	}
 
-			setDateInvoiced (new Timestamp (System.currentTimeMillis ()));
-			setDateAcct (new Timestamp (System.currentTimeMillis ()));
-			//
-			setChargeAmt (Env.ZERO);
-			setTotalLines (Env.ZERO);
-			setGrandTotal (Env.ZERO);
-			//
-			setIsSOTrx (true);
-			setIsTaxIncluded (false);
-			setIsApproved (false);
-			setIsDiscountPrinted (false);
-			setIsPaid (false);
-			setSendEMail (false);
-			setIsPrinted (false);
-			setIsTransferred (false);
-			setIsSelfService(false);
-			setIsPayScheduleValid(false);
-			setIsInDispute(false);
-			setPosted(false);
-			super.setProcessed (false);
-			setProcessing(false);
-		}
+	/**
+	 * Set the initial defaults for a new record
+	 */
+	private void setInitialDefaults() {
+		setDocStatus (DOCSTATUS_Drafted);		//	Draft
+		setDocAction (DOCACTION_Complete);
+		//
+		setPaymentRule(PAYMENTRULE_OnCredit);	//	Payment Terms
+
+		setDateInvoiced (new Timestamp (System.currentTimeMillis ()));
+		setDateAcct (new Timestamp (System.currentTimeMillis ()));
+		//
+		setChargeAmt (Env.ZERO);
+		setTotalLines (Env.ZERO);
+		setGrandTotal (Env.ZERO);
+		//
+		setIsSOTrx (true);
+		setIsTaxIncluded (false);
+		setIsApproved (false);
+		setIsDiscountPrinted (false);
+		setIsPaid (false);
+		setSendEMail (false);
+		setIsPrinted (false);
+		setIsTransferred (false);
+		setIsSelfService(false);
+		setIsPayScheduleValid(false);
+		setIsInDispute(false);
+		setPosted(false);
+		super.setProcessed (false);
+		setProcessing(false);
 	}
 
 	/**
@@ -359,8 +507,8 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}	//	MInvoice
 
 	/**
-	 * 	Create Invoice from Shipment
-	 *	@param ship shipment
+	 * 	Create Invoice from Shipment/Receipt
+	 *	@param ship shipment/receipt
 	 *	@param invoiceDate date or null
 	 */
 	public MInvoice (MInOut ship, Timestamp invoiceDate)
@@ -374,7 +522,8 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 			setDateInvoiced(invoiceDate);
 		setDateAcct(getDateInvoiced());
 		//
-		setSalesRep_ID(ship.getSalesRep_ID());
+		if (getSalesRep_ID() == 0)
+			setSalesRep_ID(ship.getSalesRep_ID());
 	}	//	MInvoice
 
 	/**
@@ -416,7 +565,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}	//	MInvoice
 
 	/**
-	 * 
+	 * Copy constructor
 	 * @param copy
 	 */
 	public MInvoice(MInvoice copy) 
@@ -425,7 +574,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}
 
 	/**
-	 * 
+	 * Copy constructor
 	 * @param ctx
 	 * @param copy
 	 */
@@ -435,7 +584,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}
 
 	/**
-	 * 
+	 * Copy constructor
 	 * @param ctx
 	 * @param copy
 	 * @param trxName
@@ -464,6 +613,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	@param AD_Client_ID client
 	 * 	@param AD_Org_ID org
 	 */
+	@Override
 	public void setClientOrg (int AD_Client_ID, int AD_Org_ID)
 	{
 		super.setClientOrg(AD_Client_ID, AD_Org_ID);
@@ -524,7 +674,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}	//	setBPartner
 
 	/**
-	 * 	Set Order References
+	 * 	Set Order Reference
 	 * 	@param order order
 	 */
 	public void setOrder (MOrder order)
@@ -558,7 +708,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}	//	setOrder
 
 	/**
-	 * 	Set Shipment References
+	 * 	Set Shipment Reference
 	 * 	@param ship shipment
 	 */
 	public void setShipment (MInOut ship)
@@ -607,6 +757,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 			setC_BPartner_Location_ID(order.getBill_Location_ID());
 			// Overwrite Contact
 			setAD_User_ID(order.getBill_User_ID());
+			setSalesRep_ID(order.getSalesRep_ID());
 			//
 		}
         // Check if Shipment/Receipt is based on RMA
@@ -663,7 +814,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 
 	/**
 	 * 	Set Target Document Type.
-	 * 	Based on SO flag AP/AP Invoice
+	 * 	Based on SO flag AR/AP Invoice.
 	 */
 	public void setC_DocTypeTarget_ID ()
 	{
@@ -678,7 +829,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 
 	/**
 	 * 	Get Grand Total
-	 * 	@param creditMemoAdjusted adjusted for CM (negative)
+	 * 	@param creditMemoAdjusted true to negate amount return
 	 *	@return grand total
 	 */
 	public BigDecimal getGrandTotal (boolean creditMemoAdjusted)
@@ -694,7 +845,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 
 	/**
 	 * 	Get Total Lines
-	 * 	@param creditMemoAdjusted adjusted for CM (negative)
+	 * 	@param creditMemoAdjusted true to negate amount return
 	 *	@return total lines
 	 */
 	public BigDecimal getTotalLines (boolean creditMemoAdjusted)
@@ -710,7 +861,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 
 	/**
 	 * 	Get Invoice Lines of Invoice
-	 * 	@param whereClause starting with AND
+	 * 	@param whereClause must start with AND
 	 * 	@return lines
 	 */
 	private MInvoiceLine[] getLines (String whereClause)
@@ -749,10 +900,9 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		return getLines(false);
 	}	//	getLines
 
-
 	/**
 	 * 	Renumber Lines
-	 *	@param step start and step
+	 *	@param step start and step to increment
 	 */
 	public void renumberLines (int step)
 	{
@@ -844,11 +994,9 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 				fromLine.saveEx(get_TrxName());
 			}
 
-			// MZ Goodwill
 			// copy the landed cost
 			line.copyLandedCostFrom(fromLine);
 			line.allocateLandedCosts();
-			// end MZ
 		}
 		if (fromLines.length != count)
 			log.log(Level.SEVERE, "Line difference - From=" + fromLines.length + " <> Saved=" + count);
@@ -859,7 +1007,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	private boolean m_reversal = false;
 
 	/**
-	 * 	Set Reversal
+	 * 	Set Reversal state (in memory flag)
 	 *	@param reversal reversal
 	 */
 	public void setReversal(boolean reversal)
@@ -868,7 +1016,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}	//	setReversal
 	/**
 	 * 	Is Reversal
-	 *	@return reversal
+	 *	@return reversal state (in memory flag)
 	 */
 	public boolean isReversal()
 	{
@@ -877,7 +1025,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 
 	/**
 	 * 	Get Taxes
-	 *	@param requery requery
+	 *	@param requery true to requery from DB
 	 *	@return array of taxes
 	 */
 	public MInvoiceTax[] getTaxes (boolean requery)
@@ -910,7 +1058,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 
 	/**
 	 * 	Is it a Credit Memo?
-	 *	@return true if CM
+	 *	@return true if this is CM document (DOCBASETYPE_APCreditMemo or DOCBASETYPE_ARCreditMemo)
 	 */
 	public boolean isCreditMemo()
 	{
@@ -921,9 +1069,10 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 
 	/**
 	 * 	Set Processed.
-	 * 	Propergate to Lines/Taxes
+	 * 	Propagate to Lines/Taxes.
 	 *	@param processed processed
 	 */
+	@Override
 	public void setProcessed (boolean processed)
 	{
 		super.setProcessed (processed);
@@ -944,7 +1093,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 
 	/**
 	 * 	Validate Invoice Pay Schedule
-	 *	@return pay schedule is valid
+	 *	@return true if pay schedule is valid
 	 */
 	public boolean validatePaySchedule()
 	{
@@ -980,16 +1129,17 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		return valid;
 	}	//	validatePaySchedule
 
-
 	private volatile static boolean recursiveCall = false;
-	/**************************************************************************
+	
+	/**
 	 * 	Before Save
 	 *	@param newRecord new
 	 *	@return true
 	 */
+	@Override
 	protected boolean beforeSave (boolean newRecord)
 	{
-		log.fine("");
+		if (log.isLoggable(Level.FINE)) log.fine("");
 		//	No Partner Info - set Template
 		if (getC_BPartner_ID() == 0)
 			setBPartner(MBPartner.getTemplate(getCtx(), getAD_Client_ID()));
@@ -1128,6 +1278,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Before Delete
 	 *	@return true if it can be deleted
 	 */
+	@Override
 	protected boolean beforeDelete ()
 	{
 		if (getC_Order_ID() != 0)
@@ -1141,8 +1292,9 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	/**
 	 * After Delete
 	 * @param success success
-	 * @return deleted
+	 * @return true if deleted
 	 */
+	@Override
 	protected boolean afterDelete(boolean success) {
 		// If delete invoice failed then do nothing
 		if (!success)
@@ -1166,6 +1318,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	String Representation
 	 *	@return info
 	 */
+	@Override
 	public String toString ()
 	{
 		StringBuilder sb = new StringBuilder ("MInvoice[")
@@ -1181,6 +1334,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Get Document Info
 	 *	@return document info (untranslated)
 	 */
+	@Override
 	public String getDocumentInfo()
 	{
 		MDocType dt;
@@ -1193,13 +1347,13 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		return msgreturn.toString();
 	}	//	getDocumentInfo
 
-
 	/**
 	 * 	After Save
 	 *	@param newRecord new
 	 *	@param success success
 	 *	@return success
 	 */
+	@Override
 	protected boolean afterSave (boolean newRecord, boolean success)
 	{
 		if (!success || newRecord)
@@ -1218,7 +1372,6 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		
 		return true;
 	}	//	afterSave
-
 
 	/**
 	 * 	Set Price List (and Currency) when valid
@@ -1276,7 +1429,8 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 
 	/**
 	 * 	Test Allocation (and set paid flag)
-	 *	@return true if updated
+	 *  @param beingCompleted true if call during processing of Complete document action
+	 *	@return true if updated IsPaid
 	 */
 	public boolean testAllocation(boolean beingCompleted)
 	{
@@ -1302,6 +1456,10 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		return change;
 	}	//	testAllocation
 
+	/**
+	 * Test Allocation (and set paid flag)
+	 * @return true if updated IsPaid
+	 */
 	public boolean testAllocation() {
 		return testAllocation(false);
 	}
@@ -1343,26 +1501,30 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 			DB.close(rs);
 		}
 		if (s_log.isLoggable(Level.CONFIG)) s_log.config("#" + counter);
-		/**/
 	}	//	setIsPaid
 
 	/**
 	 * 	Get Open Amount.
-	 * 	Used by web interface
-	 * 	@return Open Amt
+	 * 	@return Open Amount
 	 */
 	public BigDecimal getOpenAmt ()
 	{
 		return getOpenAmt (true, null, false);
 	}	//	getOpenAmt
 
+	/**
+	 * @param creditMemoAdjusted
+	 * @param paymentDate
+	 * @return Open Amount
+	 */
 	public BigDecimal getOpenAmt (boolean creditMemoAdjusted, Timestamp paymentDate)
 	{
 		return getOpenAmt(creditMemoAdjusted, paymentDate, false);
 	}
+	
 	/**
 	 * 	Get Open Amount
-	 * 	@param creditMemoAdjusted adjusted for CM (negative)
+	 * 	@param creditMemoAdjusted true to negate return amount
 	 * 	@param paymentDate Payment Date
 	 * 	@return Open Amt
 	 */
@@ -1387,9 +1549,10 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		return m_openAmt;
 	}	//	getOpenAmt
 
-	/*
-     *    Get open amt depending on payment date
-     *    @return open Amt
+	/**
+     * Get open amt depending on payment date
+     * @param paymentDate
+     * @return open Amt
      */
     public BigDecimal getOpenAmt (Timestamp paymentDate)
     {
@@ -1406,9 +1569,10 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
         return retValue;
     }    //    getOpenAmt
 
-    /*
-     *    Get discount amt depending on payment date
-     *    @return discount Amt
+    /**
+     * Get discount amt depending on payment date
+     * @param paymentDate
+     * @return discount Amt
      */
     public BigDecimal getDiscountAmt(Timestamp paymentDate)
     {
@@ -1419,19 +1583,19 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
     }
 
 	/**
-	 * 	Get Document Status
-	 *	@return Document Status Clear Text
+	 * 	Get Document Status Name
+	 *	@return Document Status Name
 	 */
 	public String getDocStatusName()
 	{
 		return MRefList.getListName(getCtx(), 131, getDocStatus());
 	}	//	getDocStatusName
 
-
-	/**************************************************************************
+	/**
 	 * 	Create PDF
 	 *	@return File or null
 	 */
+	@Override
 	public File createPDF ()
 	{
 		try
@@ -1503,12 +1667,12 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		return MCurrency.getStdPrecision(getCtx(), getC_Currency_ID());
 	}	//	getPrecision
 
-
-	/**************************************************************************
+	/**
 	 * 	Process document
 	 *	@param processAction document action
 	 *	@return true if performed
 	 */
+	@Override
 	public boolean processIt (String processAction)
 	{
 		m_processMsg = null;
@@ -1525,6 +1689,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Unlock Document.
 	 * 	@return true if success
 	 */
+	@Override
 	public boolean unlockIt()
 	{
 		if (log.isLoggable(Level.INFO)) log.info("unlockIt - " + toString());
@@ -1536,6 +1701,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Invalidate Document
 	 * 	@return true if success
 	 */
+	@Override
 	public boolean invalidateIt()
 	{
 		if (log.isLoggable(Level.INFO)) log.info("invalidateIt - " + toString());
@@ -1547,6 +1713,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 *	Prepare Document
 	 * 	@return new status (In Progress or Invalid)
 	 */
+	@Override
 	public String prepareIt()
 	{
 		if (log.isLoggable(Level.INFO)) log.info(toString());
@@ -1597,23 +1764,15 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		}
 
 		//	Credit Status
-		if (isSOTrx())
+		ICreditManager creditManager = Core.getCreditManager(this);
+		if (creditManager != null)
 		{
-			MDocType doc = (MDocType) getC_DocTypeTarget();
-			// IDEMPIERE-365 - just check credit if is going to increase the debt
-			if ( (doc.getDocBaseType().equals(MDocType.DOCBASETYPE_ARCreditMemo) && getGrandTotal().signum() < 0 ) ||
-				(doc.getDocBaseType().equals(MDocType.DOCBASETYPE_ARInvoice) && getGrandTotal().signum() > 0 )
-			   )
-			{	
-				MBPartner bp = new MBPartner (getCtx(), getC_BPartner_ID(), null);
-				if ( MBPartner.SOCREDITSTATUS_CreditStop.equals(bp.getSOCreditStatus()) )
-				{
-					m_processMsg = "@BPartnerCreditStop@ - @TotalOpenBalance@="
-							+ bp.getTotalOpenBalance()
-							+ ", @SO_CreditLimit@=" + bp.getSO_CreditLimit();
-					return DocAction.STATUS_Invalid;
-				}
-			}  
+			CreditStatus status = creditManager.checkCreditStatus(DOCACTION_Prepare);
+			if (status.isError())
+			{
+				m_processMsg = status.getErrorMsg();
+				return DocAction.STATUS_Invalid;
+			}
 		}
 
 		//	Landed Costs
@@ -1643,7 +1802,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}	//	prepareIt
 
 	/**
-	 * 	Explode non stocked BOM.
+	 * 	Explode non stocked BOM (IsBOM=Y and IsStocked=N)
 	 */
 	private void explodeBOM ()
 	{
@@ -1713,7 +1872,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 */
 	public boolean calculateTaxTotal()
 	{
-		log.fine("");
+		if (log.isLoggable(Level.FINE)) log.fine("");
 		//	Delete Taxes
 		StringBuilder msgdb = new StringBuilder("DELETE FROM C_InvoiceTax WHERE C_Invoice_ID=").append(getC_Invoice_ID());
 		DB.executeUpdateEx(msgdb.toString(), get_TrxName());
@@ -1731,7 +1890,6 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		}
 		return true;
 	}	//	calculateTaxTotal
-
 
 	/**
 	 * 	(Re) Create Pay Schedule
@@ -1762,11 +1920,11 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		}
 	}	//	createPaySchedule
 
-
 	/**
 	 * 	Approve Document
 	 * 	@return true if success
 	 */
+	@Override
 	public boolean  approveIt()
 	{
 		if (log.isLoggable(Level.INFO)) log.info(toString());
@@ -1778,6 +1936,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Reject Approval
 	 * 	@return true if success
 	 */
+	@Override
 	public boolean rejectIt()
 	{
 		if (log.isLoggable(Level.INFO)) log.info(toString());
@@ -1789,6 +1948,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Complete Document
 	 * 	@return new status (Complete, In Progress, Invalid, Waiting ..)
 	 */
+	@Override
 	public String completeIt()
 	{
 		//	Re-Check
@@ -2004,76 +2164,15 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		if (matchPO > 0)
 			info.append(" @M_MatchPO_ID@#").append(matchPO).append(" ");
 
-
-
-		//	Update BP Statistics
-		MBPartner bp = new MBPartner (getCtx(), getC_BPartner_ID(), get_TrxName());
-		DB.getDatabase().forUpdate(bp, 0);
-		//	Update total revenue and balance / credit limit (reversed on AllocationLine.processIt)
-		BigDecimal invAmt = null;
-		int baseCurrencyId = Env.getContextAsInt(getCtx(), Env.C_CURRENCY_ID);
-		if (getC_Currency_ID() != baseCurrencyId && isOverrideCurrencyRate())
+		ICreditManager creditManager = Core.getCreditManager(this);
+		if (creditManager != null)
 		{
-			invAmt = getGrandTotal(true).multiply(getCurrencyRate());
-			int stdPrecision = MCurrency.getStdPrecision(getCtx(), baseCurrencyId);
-			if (invAmt.scale() > stdPrecision)
-				invAmt = invAmt.setScale(stdPrecision, RoundingMode.HALF_UP);
-		}
-		else
-		{
-			invAmt = MConversionRate.convertBase(getCtx(), getGrandTotal(true),	//	CM adjusted
-				getC_Currency_ID(), getDateAcct(), getC_ConversionType_ID(), getAD_Client_ID(), getAD_Org_ID());
-		}
-		if (invAmt == null)
-		{
-			m_processMsg = MConversionRateUtil.getErrorMessage(getCtx(), "ErrorConvertingCurrencyToBaseCurrency",
-					getC_Currency_ID(), MClient.get(getCtx()).getC_Currency_ID(), getC_ConversionType_ID(), getDateAcct(), get_TrxName());
-			return DocAction.STATUS_Invalid;
-		}
-		//	Total Balance
-		BigDecimal newBalance = bp.getTotalOpenBalance();
-		if (newBalance == null)
-			newBalance = Env.ZERO;
-		if (isSOTrx())
-		{
-			newBalance = newBalance.add(invAmt);
-			//
-			if (bp.getFirstSale() == null)
-				bp.setFirstSale(getDateInvoiced());
-			BigDecimal newLifeAmt = bp.getActualLifeTimeValue();
-			if (newLifeAmt == null)
-				newLifeAmt = invAmt;
-			else
-				newLifeAmt = newLifeAmt.add(invAmt);
-			BigDecimal newCreditAmt = bp.getSO_CreditUsed();
-			if (newCreditAmt == null)
-				newCreditAmt = invAmt;
-			else
-				newCreditAmt = newCreditAmt.add(invAmt);
-			//
-			if (log.isLoggable(Level.FINE)) log.fine("GrandTotal=" + getGrandTotal(true) + "(" + invAmt
-				+ ") BP Life=" + bp.getActualLifeTimeValue() + "->" + newLifeAmt
-				+ ", Credit=" + bp.getSO_CreditUsed() + "->" + newCreditAmt
-				+ ", Balance=" + bp.getTotalOpenBalance() + " -> " + newBalance);
-			bp.setActualLifeTimeValue(newLifeAmt);
-			bp.setSO_CreditUsed(newCreditAmt);
-		}	//	SO
-		else
-		{
-			newBalance = newBalance.subtract(invAmt);
-			if (log.isLoggable(Level.FINE)) log.fine("GrandTotal=" + getGrandTotal(true) + "(" + invAmt
-				+ ") Balance=" + bp.getTotalOpenBalance() + " -> " + newBalance);
-		}
-		// the payment just created already updated the open balance
-		if ( ! (PAYMENTRULE_Cash.equals(getPaymentRule()) && !fromPOS ) )
-		{
-			bp.setTotalOpenBalance(newBalance);
-		}
-		bp.setSOCreditStatus();
-		if (!bp.save(get_TrxName()))
-		{
-			m_processMsg = "Could not update Business Partner";
-			return DocAction.STATUS_Invalid;
+			CreditStatus status = creditManager.checkCreditStatus(DOCACTION_Complete);
+			if (status.isError())
+			{
+				m_processMsg = status.getErrorMsg();
+				return DocAction.STATUS_Invalid;
+			}
 		}
 
 		//	User - Last Result/Contact
@@ -2249,8 +2348,12 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}	//	completeIt
 
 	/* Save array of documents to process AFTER completing this one */
-	ArrayList<PO> docsPostProcess = new ArrayList<PO>();
+	protected ArrayList<PO> docsPostProcess = new ArrayList<PO>();
 
+	/**
+	 * Add doc for post processing (after processing of document action)
+	 * @param doc
+	 */
 	private void addDocsPostProcess(PO doc) {
 		docsPostProcess.add(doc);
 	}
@@ -2368,6 +2471,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Void Document.
 	 * 	@return true if success
 	 */
+	@Override
 	public boolean voidIt()
 	{
 		if (log.isLoggable(Level.INFO)) log.info(toString());
@@ -2454,6 +2558,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Close Document.
 	 * 	@return true if success
 	 */
+	@Override
 	public boolean closeIt()
 	{
 		if (log.isLoggable(Level.INFO)) log.info(toString());
@@ -2476,6 +2581,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Reverse Correction - same date
 	 * 	@return true if success
 	 */
+	@Override
 	public boolean reverseCorrectIt()
 	{
 		if (log.isLoggable(Level.INFO)) log.info(toString());
@@ -2498,6 +2604,11 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		return true;
 	}	//	reverseCorrectIt
 
+	/**
+	 * Reverse this document
+	 * @param accrual true to use current date, false to use this document's accounting date
+	 * @return reversal invoice document
+	 */
 	private MInvoice reverse(boolean accrual) {
 		Timestamp reversalDate = accrual ? Env.getContextAsDate(getCtx(), Env.DATE) : getDateAcct();
 		if (reversalDate == null) {
@@ -2679,6 +2790,11 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		return reversal;
 	}
 
+	/**
+	 * Reverse allocations
+	 * @param accrual
+	 * @param invoiceID
+	 */
 	private void reverseAllocations(boolean accrual, int invoiceID) {
 		for (MAllocationHdr allocation : MAllocationHdr.getOfInvoice(getCtx(), invoiceID, get_TrxName())) {
 			if (accrual) {
@@ -2693,9 +2809,10 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	}
 
 	/**
-	 * 	Reverse Accrual - none
+	 * 	Reverse Accrual - use current date
 	 * 	@return false
 	 */
+	@Override
 	public boolean reverseAccrualIt()
 	{
 		if (log.isLoggable(Level.INFO)) log.info(toString());
@@ -2722,6 +2839,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Re-activate
 	 * 	@return false
 	 */
+	@Override
 	public boolean reActivateIt()
 	{
 		if (log.isLoggable(Level.INFO)) log.info(toString());
@@ -2739,11 +2857,11 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		return false;
 	}	//	reActivateIt
 
-
-	/*************************************************************************
+	/**
 	 * 	Get Summary
 	 *	@return Summary of Document
 	 */
+	@Override
 	public String getSummary()
 	{
 		StringBuilder sb = new StringBuilder();
@@ -2762,6 +2880,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Get Process Message
 	 *	@return clear text error message
 	 */
+	@Override
 	public String getProcessMsg()
 	{
 		return m_processMsg;
@@ -2771,6 +2890,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Get Document Owner (Responsible)
 	 *	@return AD_User_ID
 	 */
+	@Override
 	public int getDoc_User_ID()
 	{
 		return getSalesRep_ID();
@@ -2780,13 +2900,13 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	 * 	Get Document Approval Amount
 	 *	@return amount
 	 */
+	@Override
 	public BigDecimal getApprovalAmt()
 	{
 		return getGrandTotal();
 	}	//	getApprovalAmt
 
 	/**
-	 *
 	 * @param rma
 	 */
 	public void setRMA(MRMA rma)
@@ -2877,6 +2997,8 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		MInvoiceLine[] lines = getLines();
 		for (MInvoiceLine line : lines)
 		{
+			if (line.isDescription())
+				continue;
             MTax tax = new MTax(line.getCtx(), line.getC_Tax_ID(), line.get_TrxName());
             MTaxProvider provider = providers.get(tax.getC_TaxProvider_ID());
             if (provider == null)
@@ -2888,7 +3010,10 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		return retValue;
 	}
 
-	/** Returns C_DocType_ID (or C_DocTypeTarget_ID if C_DocType_ID is not set) */
+	/**
+	 * Get C_DocType_ID (or C_DocTypeTarget_ID if C_DocType_ID is not set)
+	 * @return C_DocType_ID 
+	 */
 	public int getDocTypeID()
 	{
 		return getC_DocType_ID() > 0 ? getC_DocType_ID() : getC_DocTypeTarget_ID();
@@ -2935,7 +3060,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 	public static final int UNPAID_INVOICE_SINGLE_CURRENCY_OVER_UNDER_AMT = 8;
 	
 	/**
-	 * 
+	 * Get unpaid invoices
 	 * @param isMultiCurrency false to apply currency filter
 	 * @param date invoice open amount as at date
 	 * @param AD_Org_ID 0 for all orgs
@@ -3145,7 +3270,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 			if(invoiceLine.getC_UOM_ID()!=inoutLine.getC_UOM_ID()) {
 				invoiceLine.setC_UOM_ID(inoutLine.getC_UOM_ID());						
 				BigDecimal PriceEntered = MUOMConversion.convertProductFrom (Env.getCtx(), M_Product_ID, 
-						inoutLine.getC_UOM_ID(), invoiceLine.getPriceEntered());
+						inoutLine.getC_UOM_ID(), invoiceLine.getPriceEntered(), 12);
 					if (PriceEntered == null)
 						throw new AdempiereException("No Conversion For Price=" + invoiceLine.getPriceEntered());
 				invoiceLine.setPriceEntered(PriceEntered);						
@@ -3188,6 +3313,7 @@ public class MInvoice extends X_C_Invoice implements DocAction, IDocsPostProcess
 		{
 			setPaymentRule(order.getPaymentRule());
 			setC_PaymentTerm_ID(order.getC_PaymentTerm_ID());
+			setSalesRep_ID(order.getSalesRep_ID());
 			saveEx();
 			load(get_TrxName()); // refresh from DB
 			// copy payment schedule from order if invoice doesn't have a current payment schedule

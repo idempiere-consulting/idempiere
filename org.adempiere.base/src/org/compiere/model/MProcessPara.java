@@ -16,11 +16,17 @@
  *****************************************************************************/
 package org.compiere.model;
 
+import java.math.BigDecimal;
 import java.sql.ResultSet;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.Properties;
 import java.util.logging.Level;
 
+import org.adempiere.exceptions.AdempiereException;
 import org.adempiere.process.UUIDGenerator;
+import org.compiere.process.ProcessInfoParameter;
+import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.DisplayType;
 import org.compiere.util.Env;
@@ -28,7 +34,6 @@ import org.compiere.util.Util;
 import org.idempiere.cache.ImmutableIntPOCache;
 import org.idempiere.cache.ImmutablePOSupport;
 import org.idempiere.expression.logic.LogicEvaluator;
-
 
 /**
  *  Process Parameter Model
@@ -39,9 +44,12 @@ import org.idempiere.expression.logic.LogicEvaluator;
 public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSupport
 {
 	/**
-	 * 
+	 * generated serial id
 	 */
-	private static final long serialVersionUID = -770944613761780314L;
+	private static final long serialVersionUID = -1116840975434565353L;
+
+	/** Static Logger					*/
+	private static CLogger		s_log = CLogger.getCLogger (MProcessPara.class);
 
 	/**
 	 * 	Get MProcessPara from Cache (immutable)
@@ -77,9 +85,20 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 	/**	Cache						*/
 	private static ImmutableIntPOCache<Integer, MProcessPara> s_cache 
 		= new ImmutableIntPOCache<Integer, MProcessPara> (Table_Name, 20);
-	
-	
-	/**************************************************************************
+		
+    /**
+     * UUID based Constructor
+     * @param ctx  Context
+     * @param AD_Process_Para_UU  UUID key
+     * @param trxName Transaction
+     */
+    public MProcessPara(Properties ctx, String AD_Process_Para_UU, String trxName) {
+        super(ctx, AD_Process_Para_UU, trxName);
+		if (Util.isEmpty(AD_Process_Para_UU))
+			setInitialDefaults();
+    }
+
+	/**
 	 * 	Constructor
 	 *	@param ctx context
 	 *	@param AD_Process_Para_ID id
@@ -89,15 +108,20 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 	{
 		super (ctx, AD_Process_Para_ID, trxName);
 		if (AD_Process_Para_ID == 0)
-		{
-			setFieldLength (0);
-			setSeqNo (0);
-			setIsCentrallyMaintained (true);
-			setIsRange (false);
-			setIsMandatory (false);
-			setEntityType (ENTITYTYPE_UserMaintained);
-		}
+			setInitialDefaults();
 	}	//	MProcessPara
+
+	/**
+	 * Set the initial defaults for a new record
+	 */
+	private void setInitialDefaults() {
+		setFieldLength (0);
+		setSeqNo (0);
+		setIsCentrallyMaintained (true);
+		setIsRange (false);
+		setIsMandatory (false);
+		setEntityType (ENTITYTYPE_UserMaintained);
+	}
 
 	/**
 	 * 	Load Constructor
@@ -123,7 +147,7 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 	}
 
 	/**
-	 * 
+	 * Copy constructor
 	 * @param copy
 	 */
 	public MProcessPara(MProcessPara copy) 
@@ -132,7 +156,7 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 	}
 
 	/**
-	 * 
+	 * Copy constructor
 	 * @param ctx
 	 * @param copy
 	 */
@@ -142,7 +166,7 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 	}
 
 	/**
-	 * 
+	 * Copy constructor
 	 * @param ctx
 	 * @param copy
 	 * @param trxName
@@ -161,7 +185,6 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 	/**	The Lookup				*/
 	private Lookup		m_lookup = null;
 	
-
 	/**
 	 *  Is this field a Lookup?.
 	 *  @return true if lookup field
@@ -181,7 +204,7 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 	}   //  isLookup
 
 	/**
-	 *  Set Lookup for columns with lookup
+	 *  Load Lookup for column with lookup
 	 */
 	public void loadLookup()
 	{
@@ -251,6 +274,7 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 	 * 	String Representation
 	 *	@return info
 	 */
+	@Override
 	public String toString ()
 	{
 		StringBuilder sb = new StringBuilder ("MProcessPara[")
@@ -260,15 +284,11 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 	}	//	toString
 	
 	/**
-	 * Copy settings from another process parameter
-	 * overwrites existing data
-	 * (including translations)
-	 * and saves
+	 * Copy settings from another process parameter and save
 	 * @param source 
 	 */
 	public void copyFrom (MProcessPara source)
 	{
-
 		if (log.isLoggable(Level.FINE))log.log(Level.FINE, "Copying from:" + source + ", to: " + this);
 		setAD_Element_ID(source.getAD_Element_ID());
 		setAD_Reference_ID(source.getAD_Reference_ID());
@@ -314,11 +334,12 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 		
 	}
 
-	/**************************************************************************
+	/**
 	 * 	Before Save
 	 *	@param newRecord
 	 *	@return save
 	 */
+	@Override
 	protected boolean beforeSave (boolean newRecord)
 	{
 		if (isCentrallyMaintained() && getAD_Element_ID() == 0)
@@ -346,23 +367,59 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 				LogicEvaluator.validate(getDisplayLogic());
 			}
 		}
-		
+
+		if (newRecord && DisplayType.isChosenMultipleSelection(getAD_Reference_ID())) {
+			MProcess p = MProcess.get(getAD_Process_ID());
+			if (Util.isEmpty(p.getClassname()) && Util.isEmpty(p.getProcedureName()) && Util.isEmpty(p.getJasperReport()))
+				setIsShowNegateButton(true);
+		}
+
+		if (getValueMin() != null) {
+			try {
+				if (getAD_Reference_ID() == DisplayType.Date) { // Date
+					SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+					new Timestamp(dateFormat.parse(getValueMin()).getTime());
+				} else if (DisplayType.isNumeric(getAD_Reference_ID())) {
+					new BigDecimal(getValueMin());
+				}
+			} catch (Exception e) {
+				throw new AdempiereException("Min Value : "+ e.getLocalizedMessage());
+			}
+		}
+
+		if (getValueMax() != null) {
+			try {
+				if (getAD_Reference_ID() == DisplayType.Date) { // Date
+					SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+					new Timestamp(dateFormat.parse(getValueMax()).getTime());
+				} else if (DisplayType.isNumeric(getAD_Reference_ID())) {
+					new BigDecimal(getValueMax());
+				}
+			} catch (Exception e) {
+				throw new AdempiereException("Max Value : "+ e.getLocalizedMessage());
+			}
+		}
+
 		return true;
 	}	//	beforeSave
 
+	/**
+	 * Get reference table name for lookup and list field
+	 * @return reference table name or null
+	 */
 	public String getReferenceTableName() {
 		String foreignTable = null;
-		if (DisplayType.TableDir == getAD_Reference_ID()
-			|| (DisplayType.Search == getAD_Reference_ID() && getAD_Reference_Value_ID() == 0)) {
+		int refid = getAD_Reference_ID();
+		if (DisplayType.TableDir == refid || DisplayType.TableDirUU == refid || ((DisplayType.Search == refid || DisplayType.SearchUU == refid) && getAD_Reference_Value_ID() == 0)) {
 			foreignTable = getColumnName().substring(0, getColumnName().length()-3);
-		} else 	if (DisplayType.Table == getAD_Reference_ID() || DisplayType.Search == getAD_Reference_ID()) {
+		} else if (DisplayType.Table == refid || DisplayType.TableUU == refid || DisplayType.Search == refid || DisplayType.SearchUU == refid) {
 			MReference ref = MReference.get(getCtx(), getAD_Reference_Value_ID(), get_TrxName());
 			if (MReference.VALIDATIONTYPE_TableValidation.equals(ref.getValidationType())) {
 				MRefTable rt = MRefTable.get(getCtx(), getAD_Reference_Value_ID(), get_TrxName());
 				if (rt != null)
 					foreignTable = rt.getAD_Table().getTableName();
 			}
-		} else 	if (DisplayType.isList(getAD_Reference_ID())) {
+		} else 	if (DisplayType.isList(refid)) {
 			foreignTable = "AD_Ref_List";
 		}
 
@@ -376,6 +433,29 @@ public class MProcessPara extends X_AD_Process_Para implements ImmutablePOSuppor
 
 		makeImmutable();
 		return this;
+	}
+
+	/**
+	 * Write in server log when an unexpected parameter is processed.<br/>
+	 * If the parameter is defined in dictionary log at INFO level as a custom parameter.<br/>
+	 * Otherwise log at SEVERE level as unknown parameter.
+	 * @param processId
+	 * @param para
+	 */
+	public static void validateUnknownParameter(int processId, ProcessInfoParameter para) {
+		MProcess process = MProcess.get(processId);
+		StringBuilder msg = new StringBuilder("Process ").append(process.getValue()).append(" - ");
+		Level level;
+		if (process.getParameter(para.getParameterName()) == null) {
+			msg.append("Unknown");
+			level = Level.SEVERE;
+		} else {
+			msg.append("Custom");
+			level = Level.INFO;
+		}
+		msg.append(" Parameter: ").append(para.getParameterName()).append("=").append(para.getInfo());
+		if (s_log.isLoggable(level))
+			s_log.log(level, msg.toString());			
 	}
 
 }	//	MProcessPara

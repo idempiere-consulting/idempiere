@@ -54,20 +54,20 @@ import org.zkoss.zul.South;
 
 /**
  * Price History for BPartner/Product
- * This class is based on org.compiere.apps.search.InvoiceHistory written by Jorg Janke
  * @author <a href="mailto:elaine.tan@idalica.com">Elaine</a>
  */
 public class InvoiceHistory extends Window implements EventListener<Event>
 {
 	/**
-	 * 
+	 * generated serial id
 	 */
 	private static final long serialVersionUID = 8742214467478030802L;
 
-	boolean showDetailATP = false;
+	protected boolean showDetailATP = false;
 
 	/**
 	 *	Show History
+	 *  @param parent
 	 *	@param C_BPartner_ID partner
 	 *	@param M_Product_ID product
 	 *	@param M_Warehouse_ID warehouse
@@ -136,9 +136,9 @@ public class InvoiceHistory extends Window implements EventListener<Event>
 	private ListModelTable 	m_modelAtp = null;
 	
 	/**
-	 *	Ststic Init
+	 * Layout window
 	 */
-	void jbInit() throws Exception
+	protected void jbInit() throws Exception
 	{
 		label.setText("Label");
 		
@@ -258,16 +258,14 @@ public class InvoiceHistory extends Window implements EventListener<Event>
 		m_tablePrice.setColumnClass(5, String.class, true);      //  DocNo
 		m_tablePrice.setColumnClass(6, Timestamp.class, true);   //  Date
 		m_tablePrice.setColumnClass(7, String.class, true);   	 //  Org
-		//
-		m_tablePrice.autoSize();
-		//
 		
 		return data.size() != 0;
 	}	//	dynInit
 
 
 	/**
-	 *	Get Info for Product for given Business Parner
+	 * Get invoiced product details for a given Business Partner.
+	 * @return invoiced product details
 	 */
 	private Vector<Vector<Object>> queryProduct ()
 	{
@@ -292,7 +290,8 @@ public class InvoiceHistory extends Window implements EventListener<Event>
 	}   //  queryProduct
 
 	/**
-	 *	Get Info for Business Partners for given Product
+	 * Get invoiced Business Partners details for a given Product
+	 * @return invoiced Business Partners details
 	 */
 	private Vector<Vector<Object>> queryBPartner ()
 	{
@@ -317,7 +316,10 @@ public class InvoiceHistory extends Window implements EventListener<Event>
 	}	//	qyeryBPartner
 
 	/**
-	 *	Fill Table
+	 * Fill list
+	 * @param sql
+	 * @param parameter
+	 * @return List of records
 	 */
 	private Vector<Vector<Object>> fillTable (String sql, int parameter)
 	{
@@ -372,8 +374,9 @@ public class InvoiceHistory extends Window implements EventListener<Event>
 	}	//	fillTable
 
 	/**
-	 *	Set Label
-	 *  to product or bp name
+	 * Set Label to product or bp name.
+	 * @param sql
+	 * @param parameter
 	 */
 	private void fillLabel (String sql, int parameter)
 	{
@@ -383,7 +386,7 @@ public class InvoiceHistory extends Window implements EventListener<Event>
 			label.setText(retValue);
 	}	//	fillLabel
 
-
+	@Override
 	public void onEvent(Event e) throws Exception {
 		Component component = e.getTarget();
 		
@@ -478,8 +481,6 @@ public class InvoiceHistory extends Window implements EventListener<Event>
 			m_tableReserved.setColumnClass(5, String.class, true);      //  DocNo
 			m_tableReserved.setColumnClass(6, Timestamp.class, true);   //  Date
 			m_tableReserved.setColumnClass(7, String.class, true);   	  //  Warehouse
-			//
-			m_tableReserved.autoSize();
 		}
 		else
 		{
@@ -494,15 +495,13 @@ public class InvoiceHistory extends Window implements EventListener<Event>
 			m_tableOrdered.setColumnClass(5, String.class, true);      //  DocNo
 			m_tableOrdered.setColumnClass(6, Timestamp.class, true);   //  Date
 			m_tableOrdered.setColumnClass(7, String.class, true);   	  //  Warehouse
-			//
-			m_tableOrdered.autoSize();
 		}
 
 	}	//	initReservedOrderedTab
 
 	
 	/**
-	 *	Query Unconfirmed
+	 *	Query Unconfirmed (Draft/In Progress M_InOut)
 	 */
 	private void initUnconfirmedTab ()
 	{
@@ -598,8 +597,6 @@ public class InvoiceHistory extends Window implements EventListener<Event>
 		m_tableUnconfirmed.setColumnClass(2, Timestamp.class, true);   //  MovementDate
 		m_tableUnconfirmed.setColumnClass(3, Boolean.class, true);  	  //  IsSOTrx
 		m_tableUnconfirmed.setColumnClass(4, String.class, true);      //  DocNo
-		//
-		m_tableUnconfirmed.autoSize();
 	}	//	initUnconfirmedTab
 
 	/**
@@ -767,7 +764,5 @@ public class InvoiceHistory extends Window implements EventListener<Event>
 		m_tableAtp.setColumnClass(6, String.class, true);   	  //  ASI
 		m_tableAtp.setColumnClass(7, String.class, true);      //  DocNo
 		m_tableAtp.setColumnClass(8, String.class, true);   	  //  Warehouse
-		//
-		m_tableAtp.autoSize();
 	}	//	initAtpTab	
 }	//	InvoiceHistory

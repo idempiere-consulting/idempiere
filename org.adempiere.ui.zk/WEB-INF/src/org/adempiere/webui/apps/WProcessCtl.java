@@ -16,6 +16,8 @@
  *****************************************************************************/
 package org.adempiere.webui.apps;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.logging.Level;
 
 import org.adempiere.util.IProcessUI;
@@ -34,13 +36,17 @@ import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Msg;
+import org.compiere.util.NamePair;
 import org.compiere.util.Trx;
+import org.compiere.util.ValueNamePair;
 import org.zkoss.zk.ui.Component;
+import org.zkoss.zk.ui.Executions;
 import org.zkoss.zk.ui.event.Event;
 import org.zkoss.zk.ui.event.EventListener;
 
 /**
- * Ported from org.compiere.apps.ProcessCtl
+ * Zk client controller for execution of process.
+ * 
  * @author hengsin
  * @contributor red1 IDEMPIERE-1711 with final review by Hengsin
  *
@@ -50,25 +56,28 @@ public class WProcessCtl extends AbstractProcessCtl {
 	/**	Logger			*/
 	private static final CLogger log = CLogger.getCLogger(WProcessCtl.class);
 	
+	/**
+	 * Call {@link #process(int, ProcessInfo, Trx, EventListener)}
+	 * @param WindowNo
+	 * @param pi
+	 * @param trx
+	 */
 	public static void process (int WindowNo, ProcessInfo pi, Trx trx)
 	{
 		process(WindowNo, pi, trx, null);
 	}
 	
 	/**
-	 *	Process Control
-	 *  <code>
-	 *	- Get Instance ID
-	 *	- Get Parameters
-	 *	- execute (lock - start process - unlock)
-	 *  </code>
-	 *  Creates a ProcessCtl instance, which calls
-	 *  lockUI and unlockUI if parent is a ASyncProcess
-	 *  <br>
-	 *
-	 *  @param WindowNo window no
-	 *  @param pi ProcessInfo process info
-	 *  @param trx Transaction
+	 * Open ProcessModalDialog to run process.
+	 * <pre>
+	 * - Create and save {@link MPInstance} if no pi.AD_PInstance_ID.
+	 * - Use {@link ProcessModalDialog} to capture process parameters and run process.
+	 * </pre>
+	 *   	
+	 * @param WindowNo window no
+	 * @param pi ProcessInfo process info
+	 * @param trx Transaction
+	 * @param listener listener for {@link ProcessModalDialog}
 	 */
 	public static void process (int WindowNo, ProcessInfo pi, Trx trx, EventListener<Event> listener)
 	{
@@ -78,7 +87,7 @@ public class WProcessCtl extends AbstractProcessCtl {
 			MPInstance instance = null;
 			try
 			{
-				instance = new MPInstance(Env.getCtx(), pi.getAD_Process_ID(), pi.getRecord_ID());
+				instance = new MPInstance(Env.getCtx(), pi.getAD_Process_ID(), pi.getTable_ID(), pi.getRecord_ID(), pi.getRecord_UU());
 			}
 			catch (Exception e)
 			{
@@ -104,7 +113,6 @@ public class WProcessCtl extends AbstractProcessCtl {
 		ProcessModalDialog para = new ProcessModalDialog(listener, WindowNo, pi, false);
 		if (para.isValid())
 		{
-			//para.setWidth("500px");
 			para.setVisible(true);
 
 			Object window = SessionManager.getAppDesktop().findWindow(WindowNo);
@@ -116,7 +124,7 @@ public class WProcessCtl extends AbstractProcessCtl {
 						parent.hideMask();
 					}
 				});
-			}else if (window != null && window instanceof Component){
+			} else if (window != null && window instanceof Component){
 				final Mask mask = LayoutUtils.showWindowWithMask(para, (Component)window, null);
 				para.addEventListener(DialogEvents.ON_WINDOW_CLOSE, new EventListener<Event>() {
 					@Override
@@ -124,67 +132,64 @@ public class WProcessCtl extends AbstractProcessCtl {
 						mask.hideMask();
 					}
 				});
-			}else{
+			} else {
 				para.setPosition("center");
 				para.setAttribute(Window.MODE_KEY, Window.MODE_HIGHLIGHTED);
 				AEnv.showWindow(para);
 			}
-			
+			Executions.schedule(para.getDesktop(), e -> para.focus(), new Event("onPostShowProcessModalDialog"));
 		}
 	}	//	execute
 	
 	/**
-	 *	Async Process - Do it all.
-	 *  <code>
-	 *	- Get Instance ID
-	 *	- Get Parameters
-	 *	- execute (lock - start process - unlock)
-	 *  </code>
-	 *  Creates a ProcessCtl instance, which calls
-	 *  lockUI and unlockUI if parent is a ASyncProcess
-	 *  <br>
-	 *	Called from ProcessDialog.actionPerformed
+	 *	Save parameters and execute process.
+	 *  <pre>
+	 *  - Create and save {@link MPInstance} if no pi.AD_PInstance_ID.
+	 *  - Call parameter.saveParameters ({@link IProcessParameter#saveParameters()}) to save process parameters.
+	 *  - Save pi.getRecord_IDs() to T_Selections ({@link DB#createT_Selection(int, java.util.Collection, String)}).
+	 *  - Call {@link WProcessCtl#run()} to execute process.
+	 *  </pre>
 	 *
-	 *  @param aProcessUI ASyncProcess and Container
+	 *  @param aProcessUI {@link IProcessUI}
 	 *  @param WindowNo window no
 	 *  @param parameter Process Parameter Panel
-	 *  @param pi ProcessInfo process info
+	 *  @param pi {@link ProcessInfo}
 	 *  @param trx Transaction
 	 */
 	public static void process(IProcessUI aProcessUI, int WindowNo, IProcessParameter parameter, ProcessInfo pi, Trx trx)
 	{
-	  if (log.isLoggable(Level.FINE)) log.fine("WindowNo=" + WindowNo + " - " + pi);
+		if (log.isLoggable(Level.FINE)) log.fine("WindowNo=" + WindowNo + " - " + pi);
 
-	  MPInstance instance = null;
-	  if (pi.getAD_PInstance_ID() < 1) { //red1 bypass if PInstance exists
-		try
-		{
-			instance = new MPInstance(Env.getCtx(), pi.getAD_Process_ID(), pi.getRecord_ID());
+		MPInstance instance = null;
+		if (pi.getAD_PInstance_ID() < 1) { //red1 bypass if PInstance exists
+			try
+			{
+				instance = new MPInstance(Env.getCtx(), pi.getAD_Process_ID(), pi.getTable_ID(), pi.getRecord_ID(), pi.getRecord_UU());
+			}
+			catch (Exception e)
+			{
+				pi.setSummary (e.getLocalizedMessage());
+				pi.setError (true);
+				log.warning(pi.toString());
+				return;
+			}
+			catch (Error e)
+			{
+				pi.setSummary (e.getLocalizedMessage());
+				pi.setError (true);
+				log.warning(pi.toString());
+				return;
+			}
+			if (!instance.save())
+			{
+				pi.setSummary (Msg.getMsg(Env.getCtx(), "ProcessNoInstance"));
+				pi.setError (true);
+				return;
+			}
+			pi.setAD_PInstance_ID (instance.getAD_PInstance_ID());
+		} else {
+			instance = new MPInstance(Env.getCtx(), pi.getAD_PInstance_ID(), null);
 		}
-		catch (Exception e)
-		{
-			pi.setSummary (e.getLocalizedMessage());
-			pi.setError (true);
-			log.warning(pi.toString());
-			return;
-		}
-		catch (Error e)
-		{
-			pi.setSummary (e.getLocalizedMessage());
-			pi.setError (true);
-			log.warning(pi.toString());
-			return;
-		}
-		if (!instance.save())
-		{
-			pi.setSummary (Msg.getMsg(Env.getCtx(), "ProcessNoInstance"));
-			pi.setError (true);
-			return;
-		}
-		pi.setAD_PInstance_ID (instance.getAD_PInstance_ID());
-	  } else {
-		  instance = new MPInstance(Env.getCtx(), pi.getAD_PInstance_ID(), null);
-	  }
 
 		//	Get Parameters
 		if (parameter != null) {
@@ -196,12 +201,21 @@ public class WProcessCtl extends AbstractProcessCtl {
 			}
 		}
 
-		if (pi.getRecord_IDs() != null && pi.getRecord_IDs().size() > 0)
-		{
+		if (pi.getRecord_UUs() != null && pi.getRecord_UUs().size() > 0) {
+			Collection<NamePair> vnps = new ArrayList<NamePair>();
+			for (String uuid : pi.getRecord_UUs()) {
+				vnps.add(new ValueNamePair(uuid, ""));
+			}
+			DB.createT_SelectionNewNP(pi.getAD_PInstance_ID(), vnps, null);
+			MPInstancePara ip = instance.createParameter(-1, "*RecordUUs*", pi.getRecord_UUs().toString());
+			ip.saveEx();
+		} else if (pi.getRecord_IDs() != null && pi.getRecord_IDs().size() > 0) {
 			DB.createT_Selection(pi.getAD_PInstance_ID(), pi.getRecord_IDs(), null);
 			MPInstancePara ip = instance.createParameter(-1, "*RecordIDs*", pi.getRecord_IDs().toString());
 			ip.saveEx();
 		}
+		
+
 		
 		//	execute
 		WProcessCtl worker = new WProcessCtl(aProcessUI, WindowNo, pi, trx);

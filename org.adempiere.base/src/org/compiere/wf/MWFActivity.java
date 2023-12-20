@@ -85,7 +85,7 @@ public class MWFActivity extends X_AD_WF_Activity implements Runnable
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 8180781075902940080L;
+	private static final long serialVersionUID = -9119089506977887142L;
 
 	private static final String CURRENT_WORKFLOW_PROCESS_INFO_ATTR = "Workflow.ProcessInfo";
 	
@@ -142,6 +142,19 @@ public class MWFActivity extends X_AD_WF_Activity implements Runnable
 		return sb.toString();
 	}	//	getActivityInfo
 
+
+    /**
+    * UUID based Constructor
+    * @param ctx  Context
+    * @param AD_WF_Activity_UU  UUID key
+    * @param trxName Transaction
+    */
+    public MWFActivity(Properties ctx, String AD_WF_Activity_UU, String trxName) {
+        super(ctx, AD_WF_Activity_UU, trxName);
+		if (Util.isEmpty(AD_WF_Activity_UU))
+			throw new IllegalArgumentException ("Cannot create new WF Activity directly");
+		m_state = new StateEngine (getWFState());
+    }
 
 	/**************************************************************************
 	 * 	Standard Constructor
@@ -204,7 +217,7 @@ public class MWFActivity extends X_AD_WF_Activity implements Runnable
 			setEndWaitTime(new Timestamp(limitMS + System.currentTimeMillis()));
 		//	Responsible
 		setResponsible(process);
-		saveEx();
+		saveCrossTenantSafeEx();
 		//
 		m_audit = new MWFEventAudit(this);
 		m_audit.setAD_Org_ID(getAD_Org_ID());//Add by Hideaki Hagiwara
@@ -1128,7 +1141,7 @@ public class MWFActivity extends X_AD_WF_Activity implements Runnable
 				getAD_Table_ID(), getRecord_ID());
 			pi.setAD_User_ID(getAD_User_ID());
 			pi.setAD_Client_ID(getAD_Client_ID());
-			MPInstance pInstance = new MPInstance(getCtx(), process.getAD_Process_ID(), getRecord_ID());
+			MPInstance pInstance = new MPInstance(getCtx(), process.getAD_Process_ID(), getAD_Table_ID(), getRecord_ID(), null); // TODO: Support WFActivity with Record_UU
 			pInstance.saveEx();
 			fillParameter(pInstance, trx);
 			pi.setAD_PInstance_ID(pInstance.getAD_PInstance_ID());
@@ -1145,7 +1158,7 @@ public class MWFActivity extends X_AD_WF_Activity implements Runnable
 			note.setRecord(getAD_Table_ID(), getRecord_ID());
 			note.saveEx();
 			//	Attachment
-			MAttachment attachment = new MAttachment (getCtx(), MNote.Table_ID, note.getAD_Note_ID(), get_TrxName());
+			MAttachment attachment = new MAttachment (getCtx(), MNote.Table_ID, note.getAD_Note_ID(), note.getAD_Note_UU(), get_TrxName());
 			attachment.addEntry(report);
 			attachment.setTextMsg(m_node.getName(true));
 			attachment.saveEx();
@@ -1158,7 +1171,7 @@ public class MWFActivity extends X_AD_WF_Activity implements Runnable
 			if (log.isLoggable(Level.FINE)) log.fine("Process:AD_Process_ID=" + m_node.getAD_Process_ID());
 			//	Process
 			MProcess process = MProcess.get(getCtx(), m_node.getAD_Process_ID());
-			MPInstance pInstance = new MPInstance(getCtx(), process.getAD_Process_ID(), getRecord_ID());
+			MPInstance pInstance = new MPInstance(getCtx(), process.getAD_Process_ID(), getAD_Table_ID(), getRecord_ID(), null); // TODO: Support WFActivity with Record_UU
 			pInstance.setIsProcessing(true);
 			pInstance.saveEx();
 			try {
@@ -1801,16 +1814,15 @@ public class MWFActivity extends X_AD_WF_Activity implements Runnable
 		//
 		String subject = null;
 		String raw = text.getMailHeader(false);
-		int first = raw != null ? raw.indexOf("@") : -1;
-		if (raw != null &&  first >= 0 && raw.indexOf("@", first) > first)
-			subject = text.getMailHeader();
+		if (raw != null && raw.contains("@_noDocInfo_@"))
+			subject = text.getMailHeader().replaceAll("@_noDocInfo_@", "");
 		else
 			subject = doc.getDocumentInfo() + ": " + text.getMailHeader();
 		String message = null;
 		raw = text.getMailText(true, false);
 		if (raw != null && (raw.contains("@=DocumentInfo") || raw.contains("@=documentInfo")
-				|| raw.contains("@=Summary") || raw.contains("@=summary")))
-			message = text.getMailText(true);
+				|| raw.contains("@=Summary") || raw.contains("@=summary") || raw.contains("@_noDocInfo_@")))
+			message = text.getMailText(true).replaceAll("@_noDocInfo_@", "");
 		else
 			message = text.getMailText(true)
 				+ "\n-----\n" + doc.getDocumentInfo()
@@ -2151,6 +2163,14 @@ public class MWFActivity extends X_AD_WF_Activity implements Runnable
 			+ " WHERE AD_WF_Activity.AD_WF_Activity_ID=r.AD_WF_Activity_ID AND r.AD_User_ID=? AND r.isActive = 'Y')" 
 			+ ") AND AD_WF_Activity.AD_Client_ID=?";	//	#5
 		return where;
+	}
+
+	public String getProcessMsg() {
+
+		if (m_process == null)
+			return null;
+
+		return m_process.getProcessMsg();
 	}
 
 }	//	MWFActivity

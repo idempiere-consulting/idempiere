@@ -27,11 +27,12 @@ package org.adempiere.util;
 import java.math.BigDecimal;
 
 import org.compiere.model.MStorageReservationLog;
+import org.compiere.model.MWarehouse;
 import org.compiere.util.Env;
 
 /**
+ * Default {@link IReservationTracer} implementation for core
  * @author hengsin
- *
  */
 public class ReservationLogTracer implements IReservationTracer {
 
@@ -47,7 +48,6 @@ public class ReservationLogTracer implements IReservationTracer {
 	private String trxName;
 
 	/**
-	 * 
 	 * @param C_DocType_ID
 	 * @param documentNo
 	 * @param lineNo
@@ -93,6 +93,7 @@ public class ReservationLogTracer implements IReservationTracer {
 		log.setOldQty(originalQty);
 		log.setNewQty(originalQty.add(diffQty));
 		log.setRecord_ID(Record_ID);
+		log.setAD_Org_ID(MWarehouse.get(Env.getCtx(), M_Warehouse_ID, trxName).getAD_Org_ID());
 		log.saveEx();
 	}
 

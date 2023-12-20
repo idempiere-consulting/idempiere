@@ -8,6 +8,7 @@ import java.util.List;
 
 import org.adempiere.webui.component.ConfirmPanel;
 import org.adempiere.webui.component.Window;
+import org.adempiere.webui.session.SessionManager;
 import org.compiere.model.I_AD_CtxHelpMsg;
 import org.compiere.model.MCtxHelp;
 import org.compiere.model.MCtxHelpMsg;
@@ -15,6 +16,7 @@ import org.compiere.model.MCtxHelpSuggestion;
 import org.compiere.model.MForm;
 import org.compiere.model.MInfoWindow;
 import org.compiere.model.MProcess;
+import org.compiere.model.MSysConfig;
 import org.compiere.model.MTab;
 import org.compiere.model.MTable;
 import org.compiere.model.MTask;
@@ -41,8 +43,8 @@ import org.zkoss.zul.South;
 import org.zkoss.zul.Vbox;
 
 /**
+ * Dialog to capture suggestion for context help (AD_CtxHelp)
  * @author hengsin
- *
  */
 public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 
@@ -62,15 +64,22 @@ public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 	private String baseContent;
 	
 	private String translatedContent;
+	/* SysConfig USE_ESC_FOR_TAB_CLOSING */
+	private boolean isUseEscForTabClosing = MSysConfig.getBooleanValue(MSysConfig.USE_ESC_FOR_TAB_CLOSING, false, Env.getAD_Client_ID(Env.getCtx()));
 
 	/**
-	 * default constructor
+	 * @param ctxHelpMsg
 	 */
 	public WCtxHelpSuggestion(MCtxHelpMsg ctxHelpMsg) {
 		this.ctxHelpMsg = new MCtxHelpMsg(ctxHelpMsg.getCtx(), ctxHelpMsg.getAD_CtxHelpMsg_ID(), ctxHelpMsg.get_TrxName());
 		layout();
 	}
 
+	/**
+	 * @param po
+	 * @param baseContent
+	 * @param translatedContent
+	 */
 	public WCtxHelpSuggestion(PO po, String baseContent, String translatedContent) {
 		this.po = po;
 		this.baseContent = baseContent;
@@ -78,6 +87,9 @@ public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 		layout();
 	}
 
+	/**
+	 * Layout dialog
+	 */
 	private void layout() {
 		Borderlayout borderlayout = new Borderlayout();
 		appendChild(borderlayout);
@@ -171,10 +183,20 @@ public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 		}		
 	}
 
+	/**
+	 * Handle onCancel event
+	 */
 	private void onCancel() {
+		// do not allow to close tab for Events.ON_CTRL_KEY event
+		if(isUseEscForTabClosing)
+			SessionManager.getAppDesktop().setCloseTabWithShortcut(false);
+
 		this.detach();
 	}
 
+	/**
+	 * Save changes to AD_CtxHelpMsg or AD_CtxHelpSuggestion
+	 */
 	private void onSave() {
 		String trxName = Trx.createTrxName();
 		Trx trx = Trx.get(trxName, true);
@@ -198,6 +220,10 @@ public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 		}
 	}
 	
+	/**
+	 * Save changes to AD_CtxHelpMsg or AD_CtxHelpSuggestion
+	 * @param trx
+	 */
 	private void onSave0(Trx trx) {
 		if (ctxHelpMsg != null && ctxHelpMsg.getAD_Client_ID() == Env.getAD_Client_ID(Env.getCtx())) {
 			if (Env.isBaseLanguage(Env.getCtx(), I_AD_CtxHelpMsg.Table_Name)) {
@@ -209,8 +235,6 @@ public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 			Object[] params = new Object[]{helpTextbox.getValue(), ctxHelpMsg.get_ID(), ctxHelpMsg.getAD_Client_ID(), Env.getAD_Language(Env.getCtx())};
 			DB.executeUpdateEx(update.toString(), params, trx.getTrxName());			
 		} else {
-		  try {
-			PO.setCrossTenantSafe();
 			/* this whole block code is forcefully writing records on System tenant */
 			MCtxHelpSuggestion suggestion = new MCtxHelpSuggestion(Env.getCtx(), 0, trx.getTrxName());
 			suggestion.setClientOrg(0, 0);
@@ -221,7 +245,7 @@ public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 				MCtxHelp ctxHelp = new MCtxHelp(Env.getCtx(), 0, trx.getTrxName());
 				setContextHelpInfo(po, ctxHelp);
 				ctxHelp.setClientOrg(0, 0);
-				ctxHelp.saveEx();
+				ctxHelp.saveCrossTenantSafeEx();
 				
 				if (po != null) {
 					if (po.is_Immutable()) {
@@ -229,11 +253,11 @@ public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 						MTable table = MTable.get(po.get_Table_ID());
 						PO mutablePO = table.getPO(po.get_ID(), trx.getTrxName());
 						mutablePO.set_ValueOfColumn("AD_CtxHelp_ID", ctxHelp.getAD_CtxHelp_ID());
-						mutablePO.saveEx(trx.getTrxName());
+						mutablePO.saveCrossTenantSafeEx(trx.getTrxName());
 						po.load(trx.getTrxName());
 					} else {
 						po.set_ValueOfColumn("AD_CtxHelp_ID", ctxHelp.getAD_CtxHelp_ID());
-						po.saveEx(trx.getTrxName());
+						po.saveCrossTenantSafeEx(trx.getTrxName());
 					}
 				}
 				
@@ -242,7 +266,7 @@ public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 				msg.setAD_CtxHelp_ID(ctxHelp.getAD_CtxHelp_ID());
 				msg.setClientOrg(0, 0);
 				msg.setMsgText(baseContent);
-				msg.saveEx();
+				msg.saveCrossTenantSafeEx();
 				suggestion.setAD_CtxHelpMsg_ID(msg.getAD_CtxHelpMsg_ID());
 				if (!Util.isEmpty(translatedContent) && !Env.isBaseLanguage(Env.getCtx(), I_AD_CtxHelpMsg.Table_Name)) {
 					int id = DB.getSQLValueEx(trx.getTrxName(), "SELECT AD_CtxHelpMsg_ID FROM AD_CtxHelpMsg_Trl WHERE AD_CtxHelpMsg_ID=? AND AD_Client_ID=? " +
@@ -280,14 +304,16 @@ public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 			suggestion.setMsgText(helpTextbox.getValue());
 			suggestion.setIsSaveAsTenantCustomization(false);
 			
-			suggestion.saveEx();
-		  } finally {
-			  PO.clearCrossTenantSafe();
-		  }
+			suggestion.saveCrossTenantSafeEx();
 		} 
 		this.detach();
 	}
 	
+	/**
+	 * remove html header tag
+	 * @param htmlString
+	 * @return alter string
+	 */
 	private String removeHeaderTag(String htmlString) {
 		htmlString = htmlString
 				.replace("<html>", "")
@@ -299,6 +325,10 @@ public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 		return htmlString;
 	}
 	
+	/**
+	 * @param po
+	 * @return context help name for po
+	 */
 	private String getContextHelpName(PO po) {
 		if (po == null) {
 			return "Home";
@@ -334,6 +364,10 @@ public class WCtxHelpSuggestion extends Window implements EventListener<Event> {
 		}
 	}
 	
+	/**
+	 * @param po
+	 * @param ctxHelp
+	 */
 	private void setContextHelpInfo(PO po, MCtxHelp ctxHelp) {
 		if (po == null) {
 			ctxHelp.setName("Home");

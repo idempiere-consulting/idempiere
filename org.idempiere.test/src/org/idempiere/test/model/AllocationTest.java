@@ -43,6 +43,7 @@ import org.compiere.model.MAllocationHdr;
 import org.compiere.model.MAllocationLine;
 import org.compiere.model.MBPartner;
 import org.compiere.model.MBankAccount;
+import org.compiere.model.MClient;
 import org.compiere.model.MConversionRate;
 import org.compiere.model.MCurrency;
 import org.compiere.model.MDocType;
@@ -170,6 +171,58 @@ public class AllocationTest extends AbstractTestCase {
 		rollback();
 	}
 
+	@Test
+	/**
+	 * https://idempiere.atlassian.net/browse/IDEMPIERE-5723
+	 */
+	public void testAllocateInvoiceArAp() {
+		MBPartner bpartner = MBPartner.get(Env.getCtx(), DictionaryIDs.C_BPartner.JOE_BLOCK.id); 
+		
+		Timestamp date = TimeUtil.getDay(null);
+		MCurrency usd = MCurrency.get(DictionaryIDs.C_Currency.USD.id); // USD
+		
+		int payterm = DictionaryIDs.C_PaymentTerm.TWO_PERCENT_10_NET_30.id; //(2%10 Net 30)
+		int taxid = DictionaryIDs.C_Tax.CT_SALES.id; // (CT Sales, Rate 6)
+
+		MInvoice invoiceAr = createInvoice(true, false, date,  date,
+				bpartner.getC_BPartner_ID(), payterm, taxid, Env.ONEHUNDRED);
+		assertEquals(invoiceAr.getTotalLines().setScale(2, RoundingMode.HALF_UP), new BigDecimal("100.00"));
+		assertEquals(invoiceAr.getGrandTotal().setScale(2, RoundingMode.HALF_UP), new BigDecimal("106.00"));
+
+		completeDocument(invoiceAr);
+		postDocument(invoiceAr);
+		
+		MInvoice invoiceAp = createInvoice(false, false, date,  date,
+				bpartner.getC_BPartner_ID(), payterm, taxid, Env.ONEHUNDRED);
+		
+		completeDocument(invoiceAp);
+		postDocument(invoiceAp);
+		
+		
+		MAllocationHdr alloc = new MAllocationHdr(Env.getCtx(), true, date, usd.getC_Currency_ID(), Env.getContext(Env.getCtx(), "#AD_User_Name"), getTrxName());
+		alloc.setAD_Org_ID(invoiceAr.getAD_Org_ID());
+		int doctypeAlloc = MDocType.getDocType(MDocType.DOCBASETYPE_PaymentAllocation);
+		alloc.setC_DocType_ID(doctypeAlloc);
+		//alloc.setDescription(alloc.getDescriptionForManualAllocation(payment.getC_BPartner_ID(), getTrxName()));
+		alloc.saveEx();
+
+		MAllocationLine aLine1 = new MAllocationLine(alloc, invoiceAp.getOpenAmt(), Env.ZERO, Env.ZERO, Env.ZERO);
+		aLine1.setDocInfo(invoiceAp.getC_BPartner_ID(), 0, invoiceAp.getC_Invoice_ID());
+		aLine1.saveEx();
+		
+		MAllocationLine aLine2 = new MAllocationLine(alloc, invoiceAr.getOpenAmt(), Env.ZERO, Env.ZERO, Env.ZERO);
+		aLine2.setDocInfo(invoiceAr.getC_BPartner_ID(), 0, invoiceAr.getC_Invoice_ID());
+		aLine2.saveEx();
+
+		completeDocument(alloc);
+		postDocument(alloc);
+		
+		alloc.load(getTrxName());
+		
+		assertTrue(alloc.isPosted(), "Allocation not posted");
+		
+	}
+	
 	@Test
 	public void testAllocateCustomerInvoice() {
 		int severeCount = 0;
@@ -435,6 +488,148 @@ public class AllocationTest extends AbstractTestCase {
 	
 	@Test
 	@ResourceLock(value = MConversionRate.Table_Name)
+	/**
+	 * https://idempiere.atlassian.net/browse/IDEMPIERE-5757
+	 */
+	public void testPaymentReverseImmediatePosting() {
+		try {
+			boolean isImmediate = MClient.isClientAccountingImmediate();
+			if (!isImmediate)
+				return;
+			
+			MBPartner bpartner = MBPartner.get(Env.getCtx(), DictionaryIDs.C_BPartner.JOE_BLOCK.id); 
+			
+			Timestamp date = TimeUtil.getDay(null);
+			MCurrency usd = MCurrency.get(DictionaryIDs.C_Currency.USD.id); // USD
+			
+			int payterm = DictionaryIDs.C_PaymentTerm.IMMEDIATE.id; // Immediate
+			int taxid = DictionaryIDs.C_Tax.EXEMPT.id; // Exempt
+			
+			MInvoice invoice = createInvoice(false, false, date,  date, bpartner.getC_BPartner_ID(), payterm, taxid, Env.ONEHUNDRED);
+			completeDocument(invoice);
+			assertTrue(invoice.isPosted(), "Invoice not posted");
+			
+			String whereClause = "AD_Org_ID=? AND C_Currency_ID=?";
+			MBankAccount ba = new Query(Env.getCtx(),MBankAccount.Table_Name, whereClause, getTrxName())
+					.setParameters(Env.getAD_Org_ID(Env.getCtx()), usd.getC_Currency_ID())
+					.setOrderBy("IsDefault DESC")
+					.first();
+			assertTrue(ba != null, "@NoAccountOrgCurrency@");
+			
+			MPayment payment = createPayment(bpartner.getC_BPartner_ID(), ba.getC_BankAccount_ID(), date, usd.getC_Currency_ID(), 0, Env.ONEHUNDRED);
+			payment.setC_Invoice_ID(invoice.getC_Invoice_ID());
+			payment.saveEx();
+			completeDocument(payment);
+			assertTrue(payment.isPosted(), "Payment not posted");
+			
+			MAllocationHdr[] allocations = MAllocationHdr.getOfPayment(Env.getCtx(), payment.getC_Payment_ID(), getTrxName());
+			for (MAllocationHdr allocation : allocations) {
+				assertTrue(allocation.isPosted(), "Allocation not posted");
+			}
+			
+			reverseCorrectDocument(payment);
+			MPayment reversalPayment = new MPayment(Env.getCtx(), payment.getReversal_ID(), getTrxName());
+			assertTrue(reversalPayment.isPosted(), "Reversal payment not posted");
+			
+			allocations = MAllocationHdr.getOfPayment(Env.getCtx(), reversalPayment.getC_Payment_ID(), getTrxName());
+			for (MAllocationHdr allocation : allocations) {
+				assertTrue(allocation.isPosted(), "Allocation not posted");
+			}
+		} finally {
+			rollback();
+		}
+	}
+	
+	@Test
+	@ResourceLock(value = MConversionRate.Table_Name)
+	/**
+	 * https://idempiere.atlassian.net/browse/IDEMPIERE-5591
+	 */
+	public void testInvoiceReversePostingWithDiffCurrency() {
+		MBPartner bpartner = MBPartner.get(Env.getCtx(), DictionaryIDs.C_BPartner.C_AND_W.id); // C&W Construction
+		Timestamp date = Env.getContextAsDate(Env.getCtx(), "#Date");
+		
+		int C_ConversionType_ID = DictionaryIDs.C_ConversionType.COMPANY.id; // Company
+		
+		MCurrency usd = MCurrency.get(DictionaryIDs.C_Currency.USD.id); // USD
+		MCurrency euro = MCurrency.get(DictionaryIDs.C_Currency.EUR.id); // EUR
+		BigDecimal eurToUsd = new BigDecimal(0.000063836578);
+		MConversionRate cr = createConversionRate(usd.getC_Currency_ID(), euro.getC_Currency_ID(), C_ConversionType_ID, date, eurToUsd, false);
+		
+		int M_PriceList_ID = DictionaryIDs.M_PriceList.EXPORT.id; // Export in EUR
+		BigDecimal totalLines = new BigDecimal(33300);
+		
+		try {
+			MInvoice invoice = new MInvoice(Env.getCtx(), 0, getTrxName());
+			invoice.setBPartner(bpartner);
+			invoice.setIsSOTrx(false);
+			invoice.setC_DocTypeTarget_ID();
+			invoice.setDateInvoiced(date);
+			invoice.setDateAcct(date);
+			invoice.setM_PriceList_ID(M_PriceList_ID);
+			invoice.setC_ConversionType_ID(C_ConversionType_ID);
+			invoice.setC_PaymentTerm_ID(DictionaryIDs.C_PaymentTerm.IMMEDIATE.id); // Immediate
+			invoice.setDocStatus(DocAction.STATUS_Drafted);
+			invoice.setDocAction(DocAction.ACTION_Complete);
+			invoice.saveEx();
+			
+			MInvoiceLine invoiceLine = new MInvoiceLine(invoice);
+			invoiceLine.setLine(10);
+			invoiceLine.setC_Charge_ID(DictionaryIDs.C_Charge.FREIGHT.id);
+			invoiceLine.setC_Tax_ID(DictionaryIDs.C_Tax.EXEMPT.id);
+			invoiceLine.setQty(BigDecimal.ONE);
+			invoiceLine.setPrice(totalLines);
+			invoiceLine.saveEx();
+			
+			completeDocument(invoice);
+			postDocument(invoice);
+			
+			reverseAccrualDocument(invoice);
+			MInvoice reversalInvoice = new MInvoice(Env.getCtx(), invoice.getReversal_ID(), getTrxName());
+			postDocument(reversalInvoice);
+			
+			MAllocationHdr[] allocations = MAllocationHdr.getOfInvoice(Env.getCtx(), invoice.getC_Invoice_ID(), getTrxName());
+			assertTrue(allocations.length == 1);
+			
+			MAllocationHdr allocation = allocations[0];
+			postDocument(allocation);
+			
+			MAcctSchema[] ass = MAcctSchema.getClientAcctSchema(Env.getCtx(), Env.getAD_Client_ID(Env.getCtx()));
+			for (MAcctSchema as : ass) {
+				if (as.getC_Currency_ID() != usd.getC_Currency_ID())
+					continue;
+				
+				Doc doc = DocManager.getDocument(as, MAllocationHdr.Table_ID, allocation.get_ID(), getTrxName());
+				doc.setC_BPartner_ID(invoice.getC_BPartner_ID());
+				
+				MAccount acctLiability = doc.getAccount(Doc.ACCTTYPE_V_Liability, as);
+				BigDecimal tradeAmtAcct = new BigDecimal(2.13).setScale(usd.getStdPrecision(), RoundingMode.HALF_UP);;
+				
+				String whereClause = MFactAcct.COLUMNNAME_AD_Table_ID + "=" + MAllocationHdr.Table_ID 
+						+ " AND " + MFactAcct.COLUMNNAME_Record_ID + "=" + allocation.get_ID()
+						+ " AND " + MFactAcct.COLUMNNAME_C_AcctSchema_ID + "=" + as.getC_AcctSchema_ID();
+				int[] ids = MFactAcct.getAllIDs(MFactAcct.Table_Name, whereClause, getTrxName());
+				for (int id : ids) {
+					MFactAcct fa = new MFactAcct(Env.getCtx(), id, getTrxName());
+					if (acctLiability.getAccount_ID() == fa.getAccount_ID()) {
+						if (fa.getAmtAcctDr().signum() > 0)
+							assertTrue(fa.getAmtAcctDr().compareTo(tradeAmtAcct) == 0, fa.getAmtAcctDr().toPlainString() + "!=" + tradeAmtAcct.toPlainString());						
+						else if (fa.getAmtAcctDr().signum() < 0)
+							assertTrue(fa.getAmtAcctDr().compareTo(tradeAmtAcct.negate()) == 0, fa.getAmtAcctDr().toPlainString() + "!=" + tradeAmtAcct.negate().toPlainString());						
+						else if (fa.getAmtAcctCr().signum() > 0)
+							assertTrue(fa.getAmtAcctCr().compareTo(tradeAmtAcct) == 0, fa.getAmtAcctCr().toPlainString() + "!=" + tradeAmtAcct.toPlainString());													
+					}				
+				}
+			}
+			
+		} finally {
+			rollback();
+			deleteConversionRate(cr);		
+		}
+	}
+	
+	@Test
+	@ResourceLock(value = MConversionRate.Table_Name)
 	public void testAllocatePaymentPosting() {
 		MBPartner bpartner = MBPartner.get(Env.getCtx(), DictionaryIDs.C_BPartner.CHROME_INC.id); 
 		Timestamp currentDate = Env.getContextAsDate(Env.getCtx(), "#Date");
@@ -593,6 +788,14 @@ public class AllocationTest extends AbstractTestCase {
 	
 	private void reverseAccrualDocument(PO po) {
 		ProcessInfo info = MWorkflow.runDocumentActionWorkflow(po, DocAction.ACTION_Reverse_Accrual);
+		po.load(getTrxName());
+		assertFalse(info.isError(), info.getSummary());
+		String docStatus = (String) po.get_Value("DocStatus");
+		assertEquals(DocAction.STATUS_Reversed, docStatus, DocAction.STATUS_Reversed + " != " + docStatus);
+	}
+	
+	private void reverseCorrectDocument(PO po) {
+		ProcessInfo info = MWorkflow.runDocumentActionWorkflow(po, DocAction.ACTION_Reverse_Correct);
 		po.load(getTrxName());
 		assertFalse(info.isError(), info.getSummary());
 		String docStatus = (String) po.get_Value("DocStatus");

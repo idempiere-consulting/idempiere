@@ -25,6 +25,8 @@ import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
+import org.compiere.model.SystemProperties;
+
 
 /**
  *	idempiere Log Formatter
@@ -119,6 +121,7 @@ public class CLogFormatter extends Formatter
 				spaces = 9;
 			sb.append("                          ".substring(0, spaces));
 		}
+		sb.append(getPrefix());
 		
 		/**	Class.method	**/
 		if (!m_shortFormat)
@@ -135,8 +138,8 @@ public class CLogFormatter extends Formatter
 		sb.append(" ")
 			.append(record.getLevel().getLocalizedName());
 		/**	Thread			**/
-		if (record.getThreadID() != 10)
-			sb.append(" [").append(record.getThreadID()).append("]");
+		if (record.getLongThreadID() != 10)
+			sb.append(" [").append(record.getLongThreadID()).append("]");
 		
 		//
 		sb.append(NL);
@@ -318,5 +321,26 @@ public class CLogFormatter extends Formatter
         if (cause != null)
         	fillExceptionTrace(sb, "caused by: ", cause);
     }	//	fillExceptionTrace
-    
+
+	/**
+	 * get the Prefix to write in file log from VM variable org.idempiere.FileLogPrefix
+	 * @return
+	 */
+	private String getPrefix()
+	{
+		String prefix = null;
+		try
+		{
+			prefix = SystemProperties.getFileLogPrefix();
+			if (!Util.isEmpty(prefix))
+				return Env.parseContext(Env.getCtx(), 0, prefix, false);
+		}
+		catch (Exception ex)
+		{
+			System.out.println("Parsing error in org.idempiere.FileLogPrefix - setting back to empty from " + prefix);
+			SystemProperties.setFileLogPrefix("");
+		}
+		return "";
+	}
+
 }	//	CLogFormatter

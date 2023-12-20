@@ -61,7 +61,7 @@ public class EnableNativeSequence extends SvrProcess
 		boolean SYSTEM_NATIVE_SEQUENCE = MSysConfig.getBooleanValue(MSysConfig.SYSTEM_NATIVE_SEQUENCE,false);
 		if (SYSTEM_NATIVE_SEQUENCE)
 		{
-			throw new AdempiereException("Native Sequence is Actived");
+			throw new AdempiereException("Native Sequence is already set");
 		}
 		
 		// update the sysconfig key to Y out of trx and reset the cache
@@ -126,7 +126,7 @@ public class EnableNativeSequence extends SvrProcess
 		Properties ctx = Env.getCtx();
 		int AD_Process_ID = PROCESS_AD_NATIVE_SEQUENCE_ENABLE; // HARDCODED
 
-		MPInstance pinstance = new MPInstance(ctx, AD_Process_ID, -1);
+		MPInstance pinstance = new MPInstance(ctx, AD_Process_ID, 0, -1, null);
 		pinstance.saveEx();
 
 		ProcessInfo pi = new ProcessInfo("", AD_Process_ID, 0, 0);

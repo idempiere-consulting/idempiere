@@ -19,6 +19,8 @@ package org.compiere.model;
 import java.sql.ResultSet;
 import java.util.Properties;
 
+import org.compiere.util.Util;
+
 /**
  *	Lot Control Model
  *	
@@ -28,9 +30,21 @@ import java.util.Properties;
 public class MLotCtl extends X_M_LotCtl
 {
 	/**
-	 * 
+	 * generated serial id
 	 */
 	private static final long serialVersionUID = -1020114756336617138L;
+
+    /**
+     * UUID based Constructor
+     * @param ctx  Context
+     * @param M_LotCtl_UU  UUID key
+     * @param trxName Transaction
+     */
+    public MLotCtl(Properties ctx, String M_LotCtl_UU, String trxName) {
+        super(ctx, M_LotCtl_UU, trxName);
+		if (Util.isEmpty(M_LotCtl_UU))
+			setInitialDefaults();
+    }
 
 	/**
 	 * 	Standard Constructor
@@ -42,12 +56,17 @@ public class MLotCtl extends X_M_LotCtl
 	{
 		super (ctx, M_LotCtl_ID, trxName);
 		if (M_LotCtl_ID == 0)
-		{
-			setStartNo (1);
-			setCurrentNext (1);
-			setIncrementNo (1);
-		}
+			setInitialDefaults();
 	}	//	MLotCtl
+
+	/**
+	 * Set the initial defaults for a new record
+	 */
+	private void setInitialDefaults() {
+		setStartNo (1);
+		setCurrentNext (1);
+		setIncrementNo (1);
+	}
 
 	/**
 	 * 	Load Constructor
@@ -61,10 +80,10 @@ public class MLotCtl extends X_M_LotCtl
 	}	//	MLotCtl
 
 	/**
-	 * 	Create new Lot.
-	 * 	Increments Current Next and Commits
+	 * 	Create and save new Lot.
+	 * 	Increments Current Next and Save.
 	 *	@param M_Product_ID product
-	 *	@return saved Lot
+	 *	@return new Lot
 	 */
 	public MLot createLot (int M_Product_ID)
 	{

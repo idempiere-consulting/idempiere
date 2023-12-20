@@ -14,6 +14,7 @@
 
 package org.adempiere.webui.process;
 
+import org.compiere.model.MProcessPara;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.idempiere.broadcast.BroadCastMsg;
@@ -21,7 +22,7 @@ import org.idempiere.broadcast.BroadCastUtil;
 import org.idempiere.broadcast.BroadcastMsgUtil;
 
 /**
- * 
+ * Process to kill current session
  * @author Deepak Pansheriya
  *
  */
@@ -39,6 +40,8 @@ public class KillCurrentSession extends SvrProcess {
 				;
 			else if (name.equals("TimeOutInSeconds"))
 				scndTimeout = para[i].getParameterAsInt();
+			else
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), para[i]);
 		}
 	}
 

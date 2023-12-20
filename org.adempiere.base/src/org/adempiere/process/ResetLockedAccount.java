@@ -1,8 +1,28 @@
+/***********************************************************************
+ * This file is part of iDempiere ERP Open Source                      *
+ * http://www.idempiere.org                                            *
+ *                                                                     *
+ * Copyright (C) Contributors                                          *
+ *                                                                     *
+ * This program is free software; you can redistribute it and/or       *
+ * modify it under the terms of the GNU General Public License         *
+ * as published by the Free Software Foundation; either version 2      *
+ * of the License, or (at your option) any later version.              *
+ *                                                                     *
+ * This program is distributed in the hope that it will be useful,     *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of      *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the        *
+ * GNU General Public License for more details.                        *
+ *                                                                     *
+ * You should have received a copy of the GNU General Public License   *
+ * along with this program; if not, write to the Free Software         *
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,          *
+ * MA 02110-1301, USA.                                                 *
+ **********************************************************************/
 package org.adempiere.process;
 
-import java.util.logging.Level;
-
 import org.adempiere.exceptions.AdempiereException;
+import org.compiere.model.MProcessPara;
 import org.compiere.model.MSysConfig;
 import org.compiere.model.MUser;
 import org.compiere.process.ProcessInfoParameter;
@@ -11,6 +31,9 @@ import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.Msg;
 
+/**
+ * Unlock locked user account
+ */
 @org.adempiere.base.annotation.Process
 public class ResetLockedAccount extends SvrProcess {
 
@@ -32,7 +55,7 @@ public class ResetLockedAccount extends SvrProcess {
 			else if (name.equals("AD_User_ID"))
 				p_AD_User_ID = element.getParameterAsInt();
 			else
-				if (log.isLoggable(Level.INFO))log.log(Level.INFO, "Unknown Parameter: " + name);
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), element);
 		}
 	}
 

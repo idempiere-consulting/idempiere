@@ -19,6 +19,7 @@ package org.compiere.model;
 import java.sql.ResultSet;
 import java.util.Properties;
 
+import org.compiere.util.Util;
 
 /**
  *	Form Access Model
@@ -29,9 +30,21 @@ import java.util.Properties;
 public class MFormAccess extends X_AD_Form_Access
 {
 	/**
-	 * 
+	 * generated serial id 
 	 */
 	private static final long serialVersionUID = 7818255846843514899L;
+
+    /**
+     * UUID based Constructor
+     * @param ctx  Context
+     * @param AD_Form_Access_UU  UUID key
+     * @param trxName Transaction
+     */
+    public MFormAccess(Properties ctx, String AD_Form_Access_UU, String trxName) {
+        super(ctx, AD_Form_Access_UU, trxName);
+		if (Util.isEmpty(AD_Form_Access_UU))
+			setInitialDefaults();
+    }
 
 	/**
 	 * 	Standard Constructor
@@ -42,13 +55,18 @@ public class MFormAccess extends X_AD_Form_Access
 	public MFormAccess (Properties ctx, int ignored, String trxName)
 	{
 		super(ctx, 0, trxName);
-		if (ignored != 0)
-			throw new IllegalArgumentException("Multi-Key");
+		if (ignored == 0)
+			setInitialDefaults();
 		else
-		{
-			setIsReadWrite (true);
-		}
+			throw new IllegalArgumentException("Multi-Key");
 	}	//	MFormAccess
+
+	/**
+	 * Set the initial defaults for a new record
+	 */
+	private void setInitialDefaults() {
+		setIsReadWrite (true);
+	}
 
 	/**
 	 * 	Load Constructor

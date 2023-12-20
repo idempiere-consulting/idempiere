@@ -19,9 +19,8 @@ import org.compiere.model.GridField;
 import org.compiere.model.Lookup;
 
 /**
- *
+ * Factory interface for {@link InfoPanel} ({@link InfoWindow})
  * @author hengsin
- *
  */
 public interface IInfoFactory {
 
@@ -40,6 +39,22 @@ public interface IInfoFactory {
 	public InfoPanel create (int WindowNo,
             String tableName, String keyColumn, String value,
             boolean multiSelection, String whereClause, int AD_InfoWindow_ID, boolean lookup);
+	
+	/**
+	 * 
+	 * @param WindowNo
+	 * @param tableName
+	 * @param keyColumn
+	 * @param value
+	 * @param multiSelection
+	 * @param whereClause
+	 * @param AD_InfoWindow_ID
+	 * @param lookup
+	 * @return {@link InfoPanel}
+	 */
+	public InfoPanel create (int WindowNo,
+            String tableName, String keyColumn, String value,
+            boolean multiSelection, String whereClause, int AD_InfoWindow_ID, Lookup lookup);
 
 	/**
 	 * 
@@ -83,4 +98,20 @@ public interface IInfoFactory {
 	public default InfoWindow create (int AD_InfoWindow_ID, String predefinedContextVariables) {
 		return create (AD_InfoWindow_ID, predefinedContextVariables);
 	}
+
+	/**
+	 * 
+	 * @param WindowNo
+	 * @param tableName
+	 * @param keyColumn
+	 * @param value
+	 * @param multiSelection
+	 * @param whereClause
+	 * @param AD_InfoWindow_ID
+	 * @param lookup
+	 * @param field
+	 * @return {@link InfoPanel}
+	 */
+	public InfoPanel create(int WindowNo, String tableName, String keyColumn, String value, boolean multiSelection,
+			String whereClause, int AD_InfoWindow_ID, boolean lookup, GridField field);
 }

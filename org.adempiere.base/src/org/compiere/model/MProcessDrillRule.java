@@ -30,11 +30,12 @@ import java.util.List;
 import java.util.Properties;
 
 import org.compiere.util.Env;
+import org.compiere.util.Util;
 import org.idempiere.cache.ImmutableIntPOCache;
 import org.idempiere.cache.ImmutablePOSupport;
 
 /**
- *
+ * Process drill rule model
  * @author Igor Pojzl, Cloudempiere
  * @author Peter Takacs, Cloudempiere
  */
@@ -44,7 +45,7 @@ public class MProcessDrillRule extends X_AD_Process_DrillRule implements Immutab
 	private MProcessDrillRulePara[] m_parameter = null;
 
 	/**
-	 *
+	 * generated serial id
 	 */
 	private static final long serialVersionUID = -6543978637922025586L;
 
@@ -55,18 +56,18 @@ public class MProcessDrillRule extends X_AD_Process_DrillRule implements Immutab
 	 * Get MProcessDrillRule Cached(Immutable)
 	 * @param ctx
 	 * @param AD_Process_DrillRule_ID
-	 * @return
+	 * @return MProcessDrillRule or null
 	 */
 	public static MProcessDrillRule get(Properties ctx, int AD_Process_DrillRule_ID) {
 		return get(ctx, AD_Process_DrillRule_ID, null);
 	}
 
 	/**
-	 *
+	 * Get MProcessDrillRule Cached(Immutable)
 	 * @param ctx
 	 * @param AD_Process_DrillRule_ID
 	 * @param trxName
-	 * @return
+	 * @return MProcessDrillRule or null
 	 */
 	public static MProcessDrillRule get(Properties ctx, int AD_Process_DrillRule_ID, String trxName) {
 		Integer ii = Integer.valueOf(AD_Process_DrillRule_ID);
@@ -83,20 +84,46 @@ public class MProcessDrillRule extends X_AD_Process_DrillRule implements Immutab
 	}
 
 
+    /**
+     * UUID based Constructor
+     * @param ctx  Context
+     * @param AD_Process_DrillRule_UU  UUID key
+     * @param trxName Transaction
+     */
+    public MProcessDrillRule(Properties ctx, String AD_Process_DrillRule_UU, String trxName) {
+        super(ctx, AD_Process_DrillRule_UU, trxName);
+    }
+
+    /**
+     * @param ctx
+     * @param AD_Process_DrillRule_ID
+     * @param trxName
+     */
 	public MProcessDrillRule(Properties ctx, int AD_Process_DrillRule_ID, String trxName) {
 		super(ctx, AD_Process_DrillRule_ID, trxName);
 	}
 
+	/**
+	 * @param ctx
+	 * @param AD_Process_DrillRule_ID
+	 * @param trxName
+	 * @param virtualColumns
+	 */
 	public MProcessDrillRule(Properties ctx, int AD_Process_DrillRule_ID, String trxName, String[] virtualColumns) {
 		super(ctx, AD_Process_DrillRule_ID, trxName, virtualColumns);
 	}
 
+	/**
+	 * @param ctx
+	 * @param rs
+	 * @param trxName
+	 */
 	public MProcessDrillRule(Properties ctx, ResultSet rs, String trxName) {
 		super(ctx, rs, trxName);
 	}
 
 	/**
-	 *
+	 * Copy constructor
 	 * @param copy
 	 */
 	public MProcessDrillRule(MProcessDrillRule copy)
@@ -105,7 +132,7 @@ public class MProcessDrillRule extends X_AD_Process_DrillRule implements Immutab
 	}
 
 	/**
-	 *
+	 * Copy constructor
 	 * @param ctx
 	 * @param copy
 	 */
@@ -115,7 +142,7 @@ public class MProcessDrillRule extends X_AD_Process_DrillRule implements Immutab
 	}
 
 	/**
-	 *
+	 * Copy constructor
 	 * @param ctx
 	 * @param copy
 	 * @param trxName
@@ -131,14 +158,13 @@ public class MProcessDrillRule extends X_AD_Process_DrillRule implements Immutab
 	 * @param ctx
 	 * @param AD_Table_ID
 	 * @param trxName
-	 * @return
+	 * @return array of MProcessDrillRule
 	 */
 	public static MProcessDrillRule[] getByTable(Properties ctx, int AD_Table_ID, String trxName) {
 
-		String whereClause = " AD_Table_ID = ? ";
+		String whereClause = " AD_Table_ID = ? AND IsValid = 'Y' AND " + MProcessDrillRule.Table_Name + "." + MProcessDrillRule.COLUMNNAME_AD_Client_ID + " IN (0,?)";
 		List<MProcessDrillRule> processDrillRules = new Query(ctx, MProcessDrillRule.Table_Name, whereClause, trxName)
-				.setParameters(AD_Table_ID)
-				.setClient_ID()
+				.setParameters(AD_Table_ID, Env.getAD_Client_ID(ctx))
 				.setOnlyActiveRecords(true)
 				.list();
 
@@ -150,17 +176,16 @@ public class MProcessDrillRule extends X_AD_Process_DrillRule implements Immutab
 	 * @param ctx
 	 * @param columnName
 	 * @param trxName
-	 * @return
+	 * @return array of MProcessDrillRule
 	 */
 	public static MProcessDrillRule[] getByColumnName(Properties ctx, String columnName, String trxName) {
 
-		String whereClause = "";
+		String whereClause = " IsValid = 'Y' AND " + MProcessDrillRule.Table_Name + "." + MProcessDrillRule.COLUMNNAME_AD_Client_ID + " IN (0,?)";
 		List<MProcessDrillRule> processDrillRules = new Query(ctx, MProcessDrillRule.Table_Name, whereClause, trxName)
 				.addJoinClause(" INNER JOIN AD_Process_Para pp ON "
 								+ MProcessDrillRule.Table_Name + "." + MProcessDrillRule.COLUMNNAME_AD_Process_Para_ID + " = pp." + MProcessPara.COLUMNNAME_AD_Process_Para_ID
 								+ " AND " + MProcessPara.COLUMNNAME_ColumnName + " = ?")
-				.setParameters(columnName)
-				.setClient_ID()
+				.setParameters(columnName, Env.getAD_Client_ID(ctx))
 				.setOnlyActiveRecords(true)
 				.list();
 
@@ -178,13 +203,14 @@ public class MProcessDrillRule extends X_AD_Process_DrillRule implements Immutab
 					setAD_Table_ID(reportView.getAD_Table_ID());
 			}
 		}
+		validate();
 		return super.beforeSave(newRecord);
 	}
-
+	
 	/**
-	 * 	Get Parameters
-	 *	@param reload reload
-	 *	@return parameter
+	 * 	Get Process Drill Rule Parameters
+	 *	@param reload true to reload from DB
+	 *	@return process drill rule parameters
 	 */
 	public MProcessDrillRulePara[] getParameters (boolean reload)
 	{
@@ -210,5 +236,58 @@ public class MProcessDrillRule extends X_AD_Process_DrillRule implements Immutab
 
 		makeImmutable();
 		return this;
+	}
+	
+	/**
+	 * @return true - all mandatory parameters are set; false - at least one mandatory parameter is not set
+	 */
+	private boolean allMandatoryParaSet() {
+		boolean isValid = false;
+		MProcess process = new MProcess(Env.getCtx(), getAD_Process_ID(), get_TrxName());
+		for(MProcessPara processPara : process.getParameters()) {
+			if(processPara.isMandatory() && processPara.getAD_Process_Para_ID() != getAD_Process_Para_ID()) {
+				for(MProcessDrillRulePara drillRulePara : getParameters(true)) {
+					if(drillRulePara.getAD_Process_Para_ID() == processPara.getAD_Process_Para_ID()) {
+						String defPara = drillRulePara.getParameterDefault();
+						String defParaTo = drillRulePara.getParameterToDefault();
+						isValid = (processPara.isRange() && (!Util.isEmpty(defPara)) || (!Util.isEmpty(defParaTo))) ||
+								(!processPara.isRange() && (!Util.isEmpty(defPara)));
+						break;
+					}
+				}
+				if(!isValid)
+					return false;
+				isValid = false;
+			}
+		}
+		return true;
+	}
+	
+	/**
+	 * Is associated process (AD_Process_ID) has at least one mandatory process parameter
+	 * @return boolean true if associated process (AD_Process_ID) has at least one mandatory process parameter
+	 */
+	public boolean hasMandatoryProcessPara() {
+		MProcess process = new MProcess(Env.getCtx(), getAD_Process_ID(), null);
+		for(MProcessPara processPara : process.getParameters()) {
+			if(processPara.isMandatory())
+				return true;
+		}
+		return false;
+	}
+	
+	/**
+	 * Validate Drill Rule - set IsValid
+	 */
+	public void validate() {
+		if(getAD_Client_ID() == 0 && hasMandatoryProcessPara() && !SHOWHELP_ShowHelp.equalsIgnoreCase(getShowHelp())) {
+			setIsValid(false);
+		}
+		else if(SHOWHELP_ShowHelp.equalsIgnoreCase(getShowHelp())) {
+			setIsValid(true);
+		}
+		else {
+			setIsValid(allMandatoryParaSet());
+		}
 	}
 }

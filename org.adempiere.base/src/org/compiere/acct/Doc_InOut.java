@@ -80,6 +80,7 @@ public class Doc_InOut extends Doc
 	 *  Load Document Details
 	 *  @return error message or null
 	 */
+	@Override
 	protected String loadDocumentDetails()
 	{
 		setC_Currency_ID(NO_CURRENCY);
@@ -156,6 +157,7 @@ public class Doc_InOut extends Doc
 	 *  Get Balance
 	 *  @return Zero (always balanced)
 	 */
+	@Override
 	public BigDecimal getBalance()
 	{
 		BigDecimal retValue = Env.ZERO;
@@ -179,6 +181,7 @@ public class Doc_InOut extends Doc
 	 *  @param as accounting schema
 	 *  @return Fact
 	 */
+	@Override
 	public ArrayList<Fact> createFacts (MAcctSchema as)
 	{
 		//
@@ -317,7 +320,7 @@ public class Doc_InOut extends Doc
 				{
 					//	Set AmtAcctCr from Original Shipment/Receipt
 					if (!cr.updateReverseLine (MInOut.Table_ID,
-							m_Reversal_ID, line.getReversalLine_ID(),Env.ONE))
+							m_Reversal_ID, line.getReversalLine_ID(),Env.ONE, dr))
 					{
 						p_Error = Msg.getMsg(getCtx(),"Original Shipment/Receipt not posted yet");
 						return null;
@@ -616,7 +619,7 @@ public class Doc_InOut extends Doc
 				{
 					//	Set AmtAcctCr from Original Shipment/Receipt
 					if (!cr.updateReverseLine (MInOut.Table_ID,
-							m_Reversal_ID, line.getReversalLine_ID(),Env.ONE))
+							m_Reversal_ID, line.getReversalLine_ID(),Env.ONE, dr))
 					{
 						p_Error = Msg.getMsg(getCtx(),"Original Shipment/Receipt not posted yet");
 						return null;
@@ -664,7 +667,6 @@ public class Doc_InOut extends Doc
 						// Low - check if c_orderline_id is valid
 						if (orderLine != null)
 						{
-						    // Elaine 2008/06/26
 						    C_Currency_ID = orderLine.getC_Currency_ID();
 						    //
 						    costs = orderLine.getPriceCost();
@@ -832,7 +834,7 @@ public class Doc_InOut extends Doc
 				{
 					//	Set AmtAcctCr from Original Shipment/Receipt
 					if (!cr.updateReverseLine (MInOut.Table_ID,
-							m_Reversal_ID, line.getReversalLine_ID(),Env.ONE))
+							m_Reversal_ID, line.getReversalLine_ID(),Env.ONE, dr))
 					{
 						p_Error = Msg.getMsg(getCtx(),"Original Receipt not posted yet");
 						return null;
@@ -877,7 +879,6 @@ public class Doc_InOut extends Doc
 		{
 			for (int i = 0; i < p_lines.length; i++)
 			{
-				// Elaine 2008/06/26
 				int C_Currency_ID = as.getC_Currency_ID();
 				//
 				DocLine_InOut line = (DocLine_InOut) p_lines[i];
@@ -1048,7 +1049,7 @@ public class Doc_InOut extends Doc
 				{
 					//	Set AmtAcctCr from Original Shipment/Receipt
 					if (!cr.updateReverseLine (MInOut.Table_ID,
-							m_Reversal_ID, line.getReversalLine_ID(),Env.ONE))
+							m_Reversal_ID, line.getReversalLine_ID(),Env.ONE, dr))
 					{
 						p_Error = Msg.getMsg(getCtx(),"Original Receipt not posted yet");
 						return null;
@@ -1075,6 +1076,13 @@ public class Doc_InOut extends Doc
 		return facts;
 	}   //  createFact
 
+	/**
+	 * @param as
+	 * @param M_Product_ID
+	 * @param ma
+	 * @param reversalLine_ID
+	 * @return MCostDetail.Amt
+	 */
 	private BigDecimal findReversalCostDetailAmt(MAcctSchema as, int M_Product_ID, MInOutLineMA ma, int reversalLine_ID) {
 		StringBuilder select = new StringBuilder("SELECT ").append(MCostDetail.COLUMNNAME_Amt)
 				.append(" FROM ").append(MCostDetail.Table_Name).append(" WHERE ")
@@ -1086,10 +1094,21 @@ public class Doc_InOut extends Doc
 		return amt;
 	}
 
+	/**
+	 * @param line
+	 * @return true if line is for reversal
+	 */
 	private boolean isReversal(DocLine line) {
 		return m_Reversal_ID !=0 && line.getReversalLine_ID() != 0;
 	}
 
+	/**
+	 * Create cost detail record from purchase return
+	 * @param as
+	 * @param line
+	 * @param costs
+	 * @return error message or empty string
+	 */
 	private String createVendorRMACostDetail(MAcctSchema as, DocLine line, BigDecimal costs)
 	{		
 		BigDecimal tQty = line.getQty();

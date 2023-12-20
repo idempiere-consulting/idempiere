@@ -18,12 +18,14 @@ package org.adempiere.process;
 
 import java.sql.*;
 import java.util.logging.*;
+
+import org.compiere.model.MProcessPara;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.*;
 
 /**
- *	Fill 1099 Extract
+ *	Fill 1099 Extract (T_1099EXTRACT) with data from bpartner, bpartner location and invoices.
  *  @author Carlos Ruiz
  *  @version $Id: Fill1099Extract.java
  */
@@ -35,6 +37,7 @@ public class Fill1099Extract extends SvrProcess
 	/**
 	 *  Prepare - e.g., get Parameters.
 	 */
+	@Override
 	protected void prepare()
 	{
 		ProcessInfoParameter[] para = getParameter();
@@ -46,7 +49,7 @@ public class Fill1099Extract extends SvrProcess
 			else if (name.equals("Cut_Date"))
 				p_Cut_Date = (Timestamp)para[i].getParameter();
 			else
-				log.log(Level.SEVERE, "Unknown Parameter: " + name);
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), para[i]);
 		}
 		if (p_Cut_Date == null)
 			p_Cut_Date = new Timestamp (System.currentTimeMillis());
@@ -57,6 +60,7 @@ public class Fill1099Extract extends SvrProcess
 	 *	@return Message
 	 *	@throws Exception
 	 */
+	@Override
 	protected String doIt() throws Exception
 	{
 		if (log.isLoggable(Level.INFO)) log.info("CUT_DATE=" + p_Cut_Date);
@@ -93,8 +97,8 @@ public class Fill1099Extract extends SvrProcess
 		sql.append("get1099bucket (bp.c_bpartner_id, ?, 14), ");
 		sql.append("get1099bucket (bp.c_bpartner_id, ?, 15), ");
 		sql.append("get1099bucket (bp.c_bpartner_id, ?, 16) ");
-		sql.append("FROM c_bpartner bp, c_bpartner_location bpl ");	//Yvonne: added  C_BPARTNER_LOCATION bpl
-		sql.append("WHERE bp.c_bpartner_id = bpl.c_bpartner_id ");	//Yvonne: added
+		sql.append("FROM c_bpartner bp, c_bpartner_location bpl ");
+		sql.append("WHERE bp.c_bpartner_id = bpl.c_bpartner_id ");
 		sql.append("AND bp.isactive = 'Y' ");
 		sql.append("AND bp.ad_client_id = ? ");
 		sql.append("AND bp.isvendor = 'Y' ");

@@ -10,24 +10,16 @@
 	background-image: none; background-color: #FFFFFF;
 }
 
-.statusline-wrapper > .z-panel-head {
-	position: absolute;
-	top: 1;
-	z-index: 1;
-	width: calc(100% - 10px);
+.dashboard-widget.z-panel {
+	display: flex; 
+	flex-direction: column; 
+	justify-content: stretch;
 }
-
 .dashboard-widget > .z-panel-body {
-	height: 100%;
+	flex-grow: 1;
 }
 
 .statusline-wrapper {
-	height: 100%;
-}
-
-.statusline-wrapper > .z-panel-body {
-	position: relative;
-	top: 0;
 	height: 100%;
 }
 
@@ -95,7 +87,6 @@
 	border: 1px solid lightgray; 
 	margin:auto;
 	width: 99%;
-	height: 90%;
 }
 
 .favourites-box {
@@ -142,6 +133,16 @@
 	display: inline-flex;
 	align-items: center;
 }
+
+.dashboard-report-toolbar .z-toolbar-content {
+	display: block;
+}
+
+.dashboard-report-toolbar .rowcount-label {
+	float: right;
+	padding: 5px;
+}
+
 .recentitems-box .trash-toolbarbutton .z-toolbarbutton-content {
 	font-size: 16px;
 }
@@ -211,7 +212,7 @@
 .performance-indicator-box {
 	background-color: #eee; 
 	border: 1px solid #d8d8d8; 
-	border-radius: 11px; 
+	border-radius: 5px; 
 	cursor: pointer;
 }
 .performance-indicator-title {
@@ -269,8 +270,8 @@
 	flex-direction: column;
  	justify-content: center;
  	align-items: center;
- 	padding: 40px 0px 10px;
  	height: 100%;
+	padding: 10px 0px;
 }
 
 .help-content
@@ -340,4 +341,39 @@
 .dashboard-content-help-icon {
 	padding: 5px;
 	cursor: default;
+	visibility: hidden;
+}
+
+.z-caption:hover .dashboard-content-help-icon {
+	visibility: visible;
+}
+
+.dashboard-content-help-popup {
+	display: none;
+}
+
+.dashboard-content-help-icon:hover ~ .dashboard-content-help-popup {
+	display: inline-flex;
+	background: black;
+	color: white;
+	border-radius: 5px;
+	padding: 4px 7px;
+    position: fixed;
+    z-index: 1800;
+    max-width: 300px;
+}
+
+.fill-mandatory-process-para-wrapper {
+	padding: 11px;
+	display: flex;
+	flex-direction: column;
+	max-width: 500px;
+}
+
+.fill-mandatory-process-para-text {
+    background: #C62223;
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    opacity: 90%;
 }

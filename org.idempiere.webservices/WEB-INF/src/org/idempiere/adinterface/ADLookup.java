@@ -19,10 +19,12 @@ import java.util.logging.Level;
 import org.compiere.model.Lookup;
 import org.compiere.model.MLookup;
 import org.compiere.model.MRole;
+import org.compiere.model.MTable;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
 import org.compiere.util.Env;
 import org.compiere.util.KeyNamePair;
+import org.compiere.util.Util;
 import org.compiere.util.ValueNamePair;
 import org.idempiere.adInterface.x10.LookupValue;
 import org.idempiere.adInterface.x10.LookupValues;
@@ -97,7 +99,7 @@ public class ADLookup {
 			m_keyColumnName = m_columnName;
 		}
 
-		if (isUUID(text))
+		if (Util.isUUID(text))
 		{
 			sql.append("SELECT ").append(m_keyColumnName).append(" FROM ").append(m_tableName)
 			   .append(" WHERE ").append(m_tableName).append("_UU=").append(DB.TO_STRING(text.toLowerCase()));
@@ -215,6 +217,8 @@ public class ADLookup {
 
 				if (displayColumnName != null)
 				{
+					if (displayColumnName.equals(m_keyColumnName))
+						displayColumnName = MTable.get(Env.getCtx(), m_tableName).getIdentifierColumns()[0];
 					sql = new StringBuffer();
 					sql.append("SELECT ").append(m_keyColumnName)
 						.append(" FROM ").append(m_tableName)
@@ -346,14 +350,4 @@ public class ADLookup {
 		return whereClause;
 	}	//	getWhereClause
 
-	private final static String UUID_REGEX="[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}";
-	
-	/**
-	 * @param value
-	 * @return true if value is a uuid identifier
-	 */
-	public static boolean isUUID(String value)
-	{
-		return value == null ? false : value.matches(UUID_REGEX);
-	}
 }

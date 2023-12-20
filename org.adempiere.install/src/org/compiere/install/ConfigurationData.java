@@ -52,6 +52,7 @@ import org.compiere.Adempiere;
 import org.compiere.db.CConnection;
 import org.compiere.db.Database;
 import org.compiere.model.MSystem;
+import org.compiere.model.SystemProperties;
 import org.compiere.util.CLogMgt;
 import org.compiere.util.CLogger;
 import org.compiere.util.DB;
@@ -108,7 +109,7 @@ public class ConfigurationData
 	public static final String	IDEMPIERE_ENV_FILE		= "idempiereEnv.properties";
 
 	/** Adempiere Home					*/
-	public static final String	IDEMPIERE_HOME 			= "IDEMPIERE_HOME";
+	public static final String	IDEMPIERE_HOME 			= Ini.IDEMPIERE_HOME;
 	/** 				*/
 	public static final String	JAVA_HOME 				= "JAVA_HOME";
 	/** 				*/
@@ -223,8 +224,8 @@ public class ConfigurationData
 	 */
 	public boolean load()
 	{
-		//	Load C:\idempiere\idempiereEnv.properties
-		String adempiereHome = System.getProperty(IDEMPIERE_HOME);
+		//	Load idempiereEnv.properties
+		String adempiereHome = SystemProperties.getIdempiereHome();
 		if (adempiereHome == null || adempiereHome.length() == 0)
 			adempiereHome = System.getProperty("user.dir");
 
@@ -269,6 +270,8 @@ public class ConfigurationData
 			initJava();
 			if (loaded.containsKey(JAVA_HOME))
 				setJavaHome((String)loaded.get(JAVA_HOME));
+			if (loaded.containsKey(IDEMPIERE_JAVA_OPTIONS))
+				setJavaOptions((String)loaded.get(IDEMPIERE_JAVA_OPTIONS));
 			//
 			setAdempiereHome((String)p_properties.get(IDEMPIERE_HOME));
 			String s = (String)p_properties.get(ADEMPIERE_KEYSTOREPASS);
@@ -1098,6 +1101,28 @@ public class ConfigurationData
 			updateProperty(JAVA_HOME, javaHome);
 	}
 
+	/**
+	 * @return Java Options
+	 */
+	public String getJavaOptions()
+	{
+		if (p_panel != null)
+			return p_panel.fJavaOptions.getText();
+		else
+			return (String)p_properties.get(IDEMPIERE_JAVA_OPTIONS);
+	}
+	/**
+	 * @param javaOptions The javaOptions to set.
+	 */
+	public void setJavaOptions(String javaOptions)
+	{
+		if (p_panel != null)
+			p_panel.fJavaOptions.setText(javaOptions);
+		else
+			updateProperty(IDEMPIERE_JAVA_OPTIONS, javaOptions);
+	}
+
+	
 	/**
 	 * 	Init Apps Server
 	 */

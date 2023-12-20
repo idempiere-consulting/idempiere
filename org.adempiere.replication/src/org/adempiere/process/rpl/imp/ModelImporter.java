@@ -28,9 +28,11 @@
  **********************************************************************/
 package org.adempiere.process.rpl.imp;
 
+import java.io.File;
 import java.util.logging.Level;
 
 import org.adempiere.process.rpl.XMLHelper;
+import org.compiere.model.MProcessPara;
 import org.compiere.process.ProcessInfoParameter;
 import org.compiere.process.SvrProcess;
 import org.compiere.util.Env;
@@ -88,7 +90,7 @@ public class ModelImporter extends SvrProcess {
 			else if (name.equals("FileName"))
 				p_FileName = (String)para[i].getParameter();
 			else
-				log.log(Level.SEVERE, "Unknown Parameter: " + name);
+				MProcessPara.validateUnknownParameter(getProcessInfo().getAD_Process_ID(), para[i]);
 		}
 		
 		if(p_EXP_Format_ID == 0)
@@ -97,9 +99,9 @@ public class ModelImporter extends SvrProcess {
 		{
 			// Load XML file and parse it
 			String fileNameOr = org.compiere.util.Ini.findAdempiereHome()
-			+ System.getProperty("file.separator")  
+			+ File.separator  
 			+ "data"
-			+ System.getProperty("file.separator")
+			+ File.separator
 			+ "ExportFile.xml";
 			p_FileName = fileNameOr;
 		}		
@@ -118,9 +120,9 @@ public class ModelImporter extends SvrProcess {
 		
 		// Load XML file and parse it
 		/*String fileNameOr = org.compiere.util.Ini.findAdempiereHome()
-		+ System.getProperty("file.separator")  
+		+ File.separator  
 		+ "data"
-		+ System.getProperty("file.separator");
+		+ File.separator;
 		
 		String pathToXmlFile = fileNameOr+"XmlExport-test.xml";
 		Document documentToBeImported = XMLHelper.createDocumentFromFile(pathToXmlFile);*/
