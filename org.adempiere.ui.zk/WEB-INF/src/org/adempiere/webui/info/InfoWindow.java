@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.function.Consumer;
 import java.util.Properties;
 import java.util.TreeMap;
 import java.util.logging.Level;
@@ -69,9 +70,14 @@ import org.adempiere.webui.component.Tabpanel;
 import org.adempiere.webui.component.Tabpanels;
 import org.adempiere.webui.component.Tabs;
 import org.adempiere.webui.component.WInfoWindowListItemRenderer;
+import org.adempiere.webui.component.WListItemRenderer;
 import org.adempiere.webui.component.WListbox;
+import org.adempiere.webui.component.WTableColumn;
 import org.adempiere.webui.component.Window;
+import org.adempiere.webui.editor.IEditorConfiguration;
 import org.adempiere.webui.editor.WEditor;
+import org.adempiere.webui.editor.WImageEditor;
+import org.adempiere.webui.editor.WImageURLEditor;
 import org.adempiere.webui.editor.WSearchEditor;
 import org.adempiere.webui.editor.WTableDirEditor;
 import org.adempiere.webui.editor.WebEditorFactory;
@@ -141,8 +147,10 @@ import org.zkoss.zul.Comboitem;
 import org.zkoss.zul.ComboitemRenderer;
 import org.zkoss.zul.Div;
 import org.zkoss.zul.Filedownload;
+import org.zkoss.zul.Image;
 import org.zkoss.zul.ListModelList;
 import org.zkoss.zul.Listitem;
+import org.zkoss.zul.ListitemRenderer;
 import org.zkoss.zul.Menuitem;
 import org.zkoss.zul.North;
 import org.zkoss.zul.Paging;
@@ -164,7 +172,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 	/**
 	 * generated serial id
 	 */
-	private static final long serialVersionUID = 4004251745919433247L;
+	private static final long serialVersionUID = 615852605072547785L;
 
 	private static final String ON_QUERY_AFTER_CHANGE = "onQueryAfterChange";
 	
@@ -224,10 +232,6 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 	
 	/** true to auto collapse parameter panel after execution of query */
 	private boolean autoCollapsedParameterPanel = false;
-
-	protected Lookup lookupModel = null;
-
-	private ArrayList<String> lookupIdentifiers;
 	
 	/**
 	 * @param WindowNo
@@ -288,25 +292,6 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 	 */
 	public InfoWindow(int WindowNo, String tableName, String keyColumn, String queryValue, 
 			boolean multipleSelection, String whereClause, int AD_InfoWindow_ID, boolean lookup, GridField field, String predefinedContextVariables) {
-		this(WindowNo, tableName, keyColumn, queryValue, multipleSelection, whereClause, AD_InfoWindow_ID, lookup, field, predefinedContextVariables, 
-			(field != null ? field.getLookup() : null));
-	}
-	
-	/**
-	 * @param WindowNo
-	 * @param tableName
-	 * @param keyColumn
-	 * @param queryValue
-	 * @param multipleSelection
-	 * @param whereClause
-	 * @param AD_InfoWindow_ID
-	 * @param lookup
-	 * @param field
-	 * @param predefinedContextVariables
-	 * @param lookupModel
-	 */
-	public InfoWindow(int WindowNo, String tableName, String keyColumn, String queryValue, 
-			boolean multipleSelection, String whereClause, int AD_InfoWindow_ID, boolean lookup, GridField field, String predefinedContextVariables, Lookup lookupModel) {
 		super(WindowNo, tableName, keyColumn, multipleSelection, whereClause,
 				lookup, AD_InfoWindow_ID, queryValue);		
 		this.m_gridfield = field;
@@ -337,14 +322,6 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 
    		Env.setPredefinedVariables(Env.getCtx(), getWindowNo(), predefinedContextVariables);
 		infoContext = new Properties(Env.getCtx());
-		if (lookupModel != null) {
-			this.lookupModel = lookupModel;
-			if (lookupModel instanceof MLookup mLookup) {
-				if (mLookup.getLookupInfo().lookupDisplayColumnNames != null && mLookup.getLookupInfo().lookupDisplayColumnNames.size() > 0) {
-					this.lookupIdentifiers = new ArrayList<String>(mLookup.getLookupInfo().lookupDisplayColumnNames);
-				}
-			}
-		}
 		p_loadedOK = loadInfoDefinition(); 
 		
 		// make process button only in window mode
@@ -543,7 +520,9 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
    				
    				// init button to show menu
    				btMenuProcess = confirmPanel.addButton("ProcessMenu", null);
-   				btMenuProcess.setPopup("ipMenu, before_start");   				
+   				btMenuProcess.addEventListener(Events.ON_CLICK, e -> {
+   					ipMenu.open(btMenuProcess, "before_start");
+   				});
    			}
    		}
 	}
@@ -614,7 +593,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 	protected void bindInfoProcessMenu (){
 		if (infoProcessMenuList == null || infoProcessMenuList == null)
 			return;
-		
+				
 		ipMenu.getChildren().clear();
 		for (MInfoProcess infoProcess : infoProcessMenuList){
 			if (!infoProcess.isDisplayed(infoContext, p_WindowNo)){
@@ -626,7 +605,9 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
    	   		Menuitem ipMenuItem = new Menuitem();
    	   		ipMenuItem.setLabel(process.get_Translation(MProcess.COLUMNNAME_Name));
    	   		if (!Util.isEmpty(infoProcess.getImageURL(), true)) {
-   	   			if (ThemeManager.isUseFontIconForImage())
+   	   			if (infoProcess.getImageURL().indexOf("://") > 0)
+   	   				ipMenuItem.setImage(infoProcess.getImageURL());
+   	   			else if (ThemeManager.isUseFontIconForImage())
    	   				ipMenuItem.setIconSclass(ThemeManager.getIconSclass(infoProcess.getImageURL()));
    	   			else
    	   				ipMenuItem.setImage(ThemeManager.getThemeResource("images/" + infoProcess.getImageURL()));
@@ -743,12 +724,57 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 	}
 	
 	protected void testQueryForSplit(String [] values) {
-		// do fill value to editor
-		for(int i = 0; i < values.length && i < identifiers.size(); i++) {
-			WEditor editor = identifiers.get(i);
-			editor.setValue(values[i].trim());
+		// store identifiers on info window, sort to follow identifier on m_table
+		List<WEditor> fillIdentifiers = new ArrayList<>();
+		// store query value, ignore value for identifier not exists on info window
+		// this list is sync with fillIdentifiers (size and order)
+		List<String> fillValues = new ArrayList<>();
+		
+		List<String> tableIdentifiers = null;
+		if (m_gridfield != null && m_gridfield.getLookup() != null 
+				&& m_gridfield.getLookup() instanceof MLookup) {
+			
+			MLookup mLookup = (MLookup)m_gridfield.getLookup();
+			if (mLookup.getLookupInfo().lookupDisplayColumnNames.size() > 0)
+				tableIdentifiers = mLookup.getLookupInfo().lookupDisplayColumnNames;
+		}
+		
+		if (tableIdentifiers != null) {
+			for (int i = 0; i < tableIdentifiers.size(); i++) {
+				// final local variable to access inside lambda expression
+				int indexFinal = i;
+				List<String> tableIdentifiersFinal = tableIdentifiers;
+				
+				// sort identifiers of info window to follow m_table
+				// ignore identifiers exists on m_table but not exists on info window
+				identifiers.forEach((Consumer<WEditor>)(identifierEditor) -> {
+					if (identifierEditor.getColumnName().equals(tableIdentifiersFinal.get(indexFinal))) {
+						fillIdentifiers.add(identifierEditor);
+						fillValues.add(values[indexFinal]);
+					}
+				});
+			}
+		}
+		
+		// case not exists mLookup.getLookupInfo().lookupDisplayColumnNames
+		// or no identifiers on info window exists on m_table
+		// fall back to old logic and just set values to identifiers
+		if (fillIdentifiers.size() == 0) {
+			for(int i = 0; i < values.length && i < identifiers.size(); i++) {
+				fillIdentifiers.add(identifiers.get(i));
+				fillValues.add(values[i]);
+			}
+		}
+		
+
+
+		// do fill value to editor (for both corrected order and fall back)
+		for(int i = 0; i < fillIdentifiers.size(); i++) {
+			WEditor editor = fillIdentifiers.get(i);
+			editor.setValue(fillValues.get(i).trim());
 		}
 		testCount(false);
+
 	}
 	
 	@Override
@@ -1206,7 +1232,10 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 			if (p_whereClause != null && p_whereClause.trim().length() > 0) {
 				builder.append(" AND ");
 			}
-			builder.append(tableInfos[0].getSynonym()).append(".IsActive='Y'");
+			String qualifiedTable = tableInfos[0].getSynonym();
+			if (Util.isEmpty(qualifiedTable))
+				qualifiedTable = tableInfos[0].getTableName();
+			builder.append(qualifiedTable).append(".IsActive='Y'");
 		}
 		int count = 0;
 		int idx = 0;
@@ -1525,11 +1554,54 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 		}
 	}
 
+	/** editor configuration for readonly field editor **/
+	private final static IEditorConfiguration readOnlyEditorConfiguration = new IEditorConfiguration() {
+		@Override
+		public Boolean getReadonly() {
+			return Boolean.TRUE;
+		}
+
+		@Override
+		public Boolean getMandatory() {
+			return Boolean.FALSE;
+		}
+	};
+	
 	@Override
 	protected void prepareTable(ColumnInfo[] layout, String from, String where,
 			String orderBy) {
 		super.prepareTable(layout, from, where, orderBy);
 
+		ListitemRenderer<?> renderer = contentPanel.getItemRenderer();
+		if (renderer instanceof WListItemRenderer lir) {
+			int columns = lir.getNoColumns();
+			for(int i = 0; i < columns; i++) {
+				WTableColumn column = lir.getColumn(i);
+				if (column.getAD_Reference_ID() == DisplayType.ImageURL) {
+					column.setEditorProvider(t -> {
+						GridField gridField = layout[t.columnIndex].getGridField();
+						WImageURLEditor editor = new WImageURLEditor(gridField, true, readOnlyEditorConfiguration);
+						editor.setValue(t.value);
+						return editor;
+					});
+				} else if (column.getAD_Reference_ID() == DisplayType.Image) {
+					column.setEditorProvider(t -> {
+						GridField gridField = layout[t.columnIndex].getGridField();
+						WImageEditor editor = new WImageEditor(gridField, true, readOnlyEditorConfiguration);
+						editor.setValue(t.value);
+						Image image = editor.getComponent();
+						if (image.getContent() != null) {
+							image.setWidth(MSysConfig.getIntValue(MSysConfig.ZK_THUMBNAIL_IMAGE_WIDTH, 100, Env.getAD_Client_ID(Env.getCtx()))+"px");
+							image.setHeight(MSysConfig.getIntValue(MSysConfig.ZK_THUMBNAIL_IMAGE_HEIGHT, 100, Env.getAD_Client_ID(Env.getCtx()))+"px");
+							image.setClientAttribute("onmouseenter", "idempiere.showFullSizeImage(event)");
+							image.setClientAttribute("onmouseleave", "idempiere.hideFullSizeImage(event)");
+						}
+						return editor;
+					});
+				}
+			}
+		}
+		
 		addViewIDToQuery();
 		addKeyViewToQuery();
 
@@ -1789,7 +1861,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 	protected void layoutParameterGrid(boolean update) {
 		if (!update) {
 			parameterGrid = GridFactory.newGridLayout();
-			parameterGrid.setWidgetAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "infoParameterPanel");
+			parameterGrid.setClientAttribute(AdempiereWebUI.WIDGET_INSTANCE_NAME, "infoParameterPanel");
 			parameterGrid.setStyle("width: 95%; margin: auto !important;");
 		}
 		if (parameterGrid.getColumns() != null)
@@ -1797,13 +1869,16 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 		Columns columns = new Columns();
 		parameterGrid.appendChild(columns);
 		noOfParameterColumn = getNoOfParameterColumns();
-		for(int i = 0; i < noOfParameterColumn; i++)
-			columns.appendChild(new Column());
-		
-		Column column = new Column();
-		ZKUpdateUtil.setWidth(column, "100px");
-		column.setAlign("right");
-		columns.appendChild(column);
+		String labelWidth = ( 100 / ( 3 * ( getNoOfParameterColumns() / 2 ) ) ) + "%";
+		String fieldWidth = ( 100 * 2 / ( 3 * ( getNoOfParameterColumns() / 2 ) ) ) + "%";
+		for(int i = 0; i < noOfParameterColumn; i++) {
+			Column column = new Column();
+			if (i%2 == 0)
+				column.setWidth(labelWidth);
+			else
+				column.setWidth(fieldWidth);
+			columns.appendChild(column);
+		}
 		
 		if (parameterGrid.getRows() != null)
 			parameterGrid.getRows().detach();
@@ -1844,9 +1919,14 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 		
 		if (checkAND == null) {
 			if (parameterGrid.getRows() != null && parameterGrid.getRows().getFirstChild() != null) {
-				Row row = (Row) parameterGrid.getRows().getFirstChild();
-				int col = row.getChildren().size();
-				while (col < 6) {
+				Row row = (Row) parameterGrid.getRows().getLastChild();
+				int col = getRowSize(row);
+				if (col == getNoOfParameterColumns()) {
+					row = new Row();
+					parameterGrid.getRows().appendChild(row);
+					col = 0;
+				}
+				while (col < getNoOfParameterColumns()-1) {
 					row.appendChild(new Space());
 					col++;
 				}
@@ -1880,22 +1960,22 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 		
 		if (!isAutoComplete)
 			dynamicDisplay(null);
-		
-		//if using lookupIdentifiers, sort identifiers in the order of lookupIdentifiers 
-		if (lookupIdentifiers != null && lookupIdentifiers.size() > 0 && identifiers.size() > 0) {
-			List<WEditor> list = new ArrayList<WEditor>();
-			for(String columnName : lookupIdentifiers) {
-				for(WEditor editor : identifiers) {
-					if (columnName.equals(editor.getColumnName())) {
-						list.add(editor);
-						break;
-					}
-				}
-			}
-			identifiers = list;
-		}
 	}
-	
+
+	/**
+	 * Get number of children from the row except Menupopup
+	 * @param row
+	 * @return
+	 */
+	private int getRowSize(Row row) {
+		int cnt = 0;
+		for (Component comp : row.getChildren()) {
+			if (! (comp instanceof Menupopup || comp instanceof DateRangeButton) )
+				cnt++;
+		}
+		return cnt;
+	}
+
 	/**
 	 * evaluate display logic for input parameters
 	 */
@@ -1950,6 +2030,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 	        editor.dynamicDisplay();
 	        editor.addValueChangeListener(this);
 	        editor.fillHorizontal();
+	        ZKUpdateUtil.setWidth((HtmlBasedComponent) editor.getComponent(), "100%");
 	        if (editor instanceof WTableDirEditor)
 	        {
 	        	((WTableDirEditor) editor).setRetainSelectedValueAfterRefresh(false);
@@ -1960,6 +2041,14 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
 		        editor2.dynamicDisplay();
 		        editor2.addValueChangeListener(this);
 		        editor2.fillHorizontal();
+		        if (DisplayType.isDate(mField.getDisplayType())) {
+		        	// give space for the Date Range button
+			        ZKUpdateUtil.setWidth((HtmlBasedComponent) editor.getComponent(), "44%");
+			        ZKUpdateUtil.setWidth((HtmlBasedComponent) editor2.getComponent(), "44%");
+		        } else {
+			        ZKUpdateUtil.setWidth((HtmlBasedComponent) editor.getComponent(), "50%");
+			        ZKUpdateUtil.setWidth((HtmlBasedComponent) editor2.getComponent(), "50%");
+		        }
 	        }
         }
         Label label = editor.getLabel();
@@ -1989,12 +2078,7 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
         
         editor.showMenu();
         
-        //if MLookup is available, use display columns of MLookup instead of InfoColumn's IsIdentifier flag
-        if (lookupIdentifiers != null && lookupIdentifiers.size() > 0) {
-        	if (lookupIdentifiers.contains(infoColumn.getColumnName()) ) {
-        		identifiers.add(editor);
-        	}
-        } else if (infoColumn.isIdentifier()) {
+        if (infoColumn.isIdentifier()) {
         	identifiers.add(editor);
         }
 
@@ -2034,17 +2118,8 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
         else
         {
         	panel = (Row) parameterGrid.getRows().getLastChild();
-        	if (panel.getChildren().size() == getNoOfParameterColumns())
+        	if (getRowSize(panel) == getNoOfParameterColumns())
         	{
-        		if (parameterGrid.getRows().getChildren().size() == 1) 
-        		{
-        			createAndCheckbox();
-					panel.appendChild(checkAND);
-        		}
-        		else
-        		{
-        			panel.appendChild(new Space());
-        		}
         		panel = new Row();
             	parameterGrid.getRows().appendChild(panel); 
         	}
@@ -2067,21 +2142,18 @@ public class InfoWindow extends InfoPanel implements ValueChangeListener, EventL
         outerParent.setStyle("display: flex;");
         outerParent.appendChild(fieldEditor);
         if(fieldEditor2 != null) {
-		Label dash = new Label("-");
-			dash.setStyle("padding-left:3px;padding-right:3px;display:flex;align-items:center;");
-			outerParent.appendChild(dash);
+            outerParent.setStyle("display: flex; flex-wrap: wrap;");
         	outerParent.appendChild(fieldEditor2);
         	if(editor.getGridField() != null && DisplayType.isDate(editor.getGridField().getDisplayType())) {
         		DateRangeButton drb = (new DateRangeButton(editor, editor2));
         		outerParent.appendChild(drb);
-			drb.setDateButtonVisible(false);
-		}
-		if (fieldEditor instanceof InputElement && fieldEditor2 instanceof InputElement) {
-			((InputElement)fieldEditor).setPlaceholder(Msg.getMsg(Env.getCtx(), "From"));
-			((InputElement)fieldEditor2).setPlaceholder(Msg.getMsg(Env.getCtx(), "To"));
-		} else if (fieldEditor instanceof NumberBox && fieldEditor2 instanceof NumberBox) {
-			((NumberBox)fieldEditor).getDecimalbox().setPlaceholder(Msg.getMsg(Env.getCtx(), "From"));
-			((NumberBox)fieldEditor2).getDecimalbox().setPlaceholder(Msg.getMsg(Env.getCtx(), "To"));
+        	}
+        	if (fieldEditor instanceof InputElement && fieldEditor2 instanceof InputElement) {
+        		((InputElement)fieldEditor).setPlaceholder(Msg.getMsg(Env.getCtx(), "From"));
+        		((InputElement)fieldEditor2).setPlaceholder(Msg.getMsg(Env.getCtx(), "To"));
+        	} else if (fieldEditor instanceof NumberBox && fieldEditor2 instanceof NumberBox) {
+        		((NumberBox)fieldEditor).getDecimalbox().setPlaceholder(Msg.getMsg(Env.getCtx(), "From"));
+        		((NumberBox)fieldEditor2).getDecimalbox().setPlaceholder(Msg.getMsg(Env.getCtx(), "To"));
         	}
         }
         panel.appendChild(outerParent);

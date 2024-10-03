@@ -70,7 +70,7 @@ public class ManageImageCache {
 	}
 	
 	/**
-	 * 	nvestigate path of MImage, if path is internal return internal url, otherwise return null.
+	 * Investigate path of MImage, if path is internal return internal url, otherwise return null.
 	 * @param image
 	 * @return URL of image or null
 	 */
@@ -235,15 +235,13 @@ public class ManageImageCache {
 	 * @param imagePath
 	 */
 	protected void loadExtend (String imagePath){
-		byte[] data = loadImageData(imagePath);
 		AImage aImage = null;
 		// when can't load image (due to incorrect url or disconnect or any exception), just set image as null
-		if (data != null)
-			try {
-				aImage = new AImage(imagePath, data);
-			} catch (IOException e) {
-				aImage = null;
-			}
+		try {
+			aImage = new AImage(new URL(imagePath));
+		} catch (IOException e) {
+			aImage = null;
+		}
 		
 		synchronized (imageCache) {
 			imageCache.put(imagePath, aImage);

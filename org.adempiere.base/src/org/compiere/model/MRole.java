@@ -1657,6 +1657,9 @@ public final class MRole extends X_AD_Role implements ImmutablePOSupport
 			if (log.isLoggable(Level.FINE)) log.fine("#" + m_windowAccess.size());
 		}	//	reload
 		Boolean retValue = m_windowAccess.get(AD_Window_ID);
+		// User Preference window is excluded - otherwise the user would not be able to reset the read-only session preference
+		if (retValue != null && AD_Window_ID != SystemIDs.WINDOW_USER_PREFERENCE && Env.isReadOnlySession())
+			retValue = Boolean.FALSE;
 		if (log.isLoggable(Level.FINE)) log.fine("getWindowAccess - AD_Window_ID=" + AD_Window_ID + " - " + retValue);
 		return retValue;
 	}	//	getWindowAccess
@@ -1749,6 +1752,8 @@ public final class MRole extends X_AD_Role implements ImmutablePOSupport
 				retValue = null;
 			}
 		}
+		if (retValue != null && Env.isReadOnlySession())
+			retValue = Boolean.FALSE;
 		return retValue;
 	}	//	getProcessAccess
 
@@ -1838,6 +1843,8 @@ public final class MRole extends X_AD_Role implements ImmutablePOSupport
 				retValue = null;
 			}
 		}
+		if (retValue != null && Env.isReadOnlySession())
+			retValue = Boolean.FALSE;
 		return retValue;
 	}	//	getTaskAccess
 
@@ -1927,6 +1934,8 @@ public final class MRole extends X_AD_Role implements ImmutablePOSupport
 				retValue = null;
 			}
 		}
+		if (retValue != null && Env.isReadOnlySession())
+			retValue = Boolean.FALSE;
 		return retValue;
 	}	//	getFormAccess
 
@@ -2016,6 +2025,8 @@ public final class MRole extends X_AD_Role implements ImmutablePOSupport
 				retValue = null;
 			}
 		}
+		if (retValue != null && Env.isReadOnlySession())
+			retValue = Boolean.FALSE;
 		return retValue;
 	}	//	getWorkflowAccess
 	
@@ -2130,7 +2141,7 @@ public final class MRole extends X_AD_Role implements ImmutablePOSupport
 			keyColumnName += getIdColumnName(TableName); 
 	
 			//log.fine("addAccessSQL - " + TableName + "(" + AD_Table_ID + ") " + keyColumnName);
-			String recordWhere = getRecordWhere (AD_Table_ID, keyColumnName, rw);
+			String recordWhere = getRecordWhere (AD_Table_ID, keyColumnName, rw, TableName, ti[i].getSynonym());
 			if (recordWhere.length() > 0)
 			{
 				retSQL.append(" AND ").append(recordWhere);
@@ -2465,9 +2476,11 @@ public final class MRole extends X_AD_Role implements ImmutablePOSupport
 	 *	@param AD_Table_ID table
 	 *	@param keyColumnName (fully qualified) key column name
 	 *	@param rw true if read write
+	 *  @param tableName 
+	 *  @param alias 
 	 *	@return where clause or ""
 	 */
-	private String getRecordWhere (int AD_Table_ID, String keyColumnName, boolean rw)
+	private String getRecordWhere (int AD_Table_ID, String keyColumnName, boolean rw, String tableName, String alias)
 	{
 		loadRecordAccess(false);
 		//
@@ -2529,6 +2542,8 @@ public final class MRole extends X_AD_Role implements ImmutablePOSupport
 			if (sb.length() > 0)
 				sb.append(" AND ");
 			String wherevr = Env.parseContext(p_ctx, 0, tvr.getCode(), false);
+			if (! Util.isEmpty(alias) && ! alias.equals(tableName))
+				wherevr = wherevr.replaceAll("\\b" + tableName + "\\b", alias);
 			sb.append(" (").append(wherevr).append(") ");
 		}
 
