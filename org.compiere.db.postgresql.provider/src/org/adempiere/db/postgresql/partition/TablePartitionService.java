@@ -235,8 +235,17 @@ public class TablePartitionService implements ITablePartitionService {
 			//unique index must include partition key column
 			String indexdef = uniqueMap.get(indexName);
 			for(String partitionKey : partitionKeyColumnNames) {
-				if (!indexdef.contains(partitionKey.toLowerCase()+",") && !indexdef.contains(partitionKey.toLowerCase()+")"))
-					indexdef = indexdef.substring(0, indexdef.length()-1)+", "+partitionKey.toLowerCase()+")";
+				if (!indexdef.contains(partitionKey.toLowerCase()+",") && !indexdef.contains(partitionKey.toLowerCase()+")")) {
+					int whereIndex = indexdef.toLowerCase().indexOf(" where ");
+					if (whereIndex > 0) {
+						String whereClause = indexdef.substring(whereIndex);
+						indexdef = indexdef.substring(0, whereIndex);
+						indexdef = indexdef.substring(0, indexdef.length()-1)+", "+partitionKey.toLowerCase()+")";
+						indexdef = indexdef + whereClause;
+					} else {
+						indexdef = indexdef.substring(0, indexdef.length()-1)+", "+partitionKey.toLowerCase()+")";
+					}
+				}
 			}			
 			StringBuilder alter = new StringBuilder("DROP INDEX ").append(indexName);
 			DB.executeUpdateEx(alter.toString(), trxName);
@@ -889,7 +898,10 @@ public class TablePartitionService implements ITablePartitionService {
 			
 		updateStmt.append(partitionKeyColumn.getColumnName()).append("=");						
 				
-		if (DisplayType.isText(partitionKeyColumn.getAD_Reference_ID()))
+		if (DisplayType.isText(partitionKeyColumn.getAD_Reference_ID()) || partitionKeyColumn.getAD_Reference_ID() == DisplayType.YesNo 
+			|| DisplayType.isList(partitionKeyColumn.getAD_Reference_ID())
+			|| "EntityType".equals(partitionKeyColumn.getColumnName())
+			|| "AD_Language".equals(partitionKeyColumn.getColumnName()))
 			updateStmt.append("'").append(listValue).append("' ");
 		else
 			updateStmt.append(listValue).append(" ");

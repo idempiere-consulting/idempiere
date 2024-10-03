@@ -65,9 +65,9 @@ import org.idempiere.cache.ImmutablePOSupport;
 public class MTable extends X_AD_Table implements ImmutablePOSupport
 {
 	/**
-	 * generated serial id
+	 * 
 	 */
-	private static final long serialVersionUID = 4325276636597337437L;
+	private static final long serialVersionUID = 6774131577483620665L;
 
 	public final static int MAX_OFFICIAL_ID = 999999;
 
@@ -747,23 +747,19 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 		return po;
 	}
 
-	/**
-	 * 	Before Save
-	 *	@param newRecord new
-	 *	@return true
-	 */
 	@Override
 	protected boolean beforeSave (boolean newRecord)
 	{
 		if (isView() && isDeleteable())
 			setIsDeleteable(false);
-		//
+		// Validate table name is valid DB identifier
 		String error = Database.isValidIdentifier(getTableName());
 		if (!Util.isEmpty(error)) {
 			log.saveError("Error", Msg.getMsg(getCtx(), error) + " [TableName]");
 			return false;
 		}
 				
+		// Validate table partition configuration
 		if (is_ValueChanged(COLUMNNAME_IsPartition)) {
 			ITablePartitionService service = DB.getDatabase().getTablePartitionService();
 			if (service == null) {
@@ -780,19 +776,13 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 		return true;
 	}	//	beforeSave
 
-	/**
-	 * 	After Save
-	 *	@param newRecord new
-	 *	@param success success
-	 *	@return success
-	 */
 	@Override
 	protected boolean afterSave (boolean newRecord, boolean success)
 	{
 		if (!success)
 			return success;
-		//	Sync Table ID
 		if(!isView()) {
+			// Create or update table sequence
 			MSequence seq = MSequence.get(getCtx(), getTableName(), get_TrxName());
 			if (seq == null || seq.get_ID() == 0)
 				MSequence.createTableSequence(getCtx(), getTableName(), get_TrxName());
@@ -802,6 +792,7 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 				seq.saveEx();
 			}
 		}
+		// Reset logged table list
 		if (newRecord || is_ValueChanged(COLUMNNAME_IsChangeLog)) {
 			MChangeLog.resetLoggedList();
 		}
@@ -1084,4 +1075,32 @@ public class MTable extends X_AD_Table implements ImmutablePOSupport
 			tablePartitionNames.add(partition.getName());
 		return tablePartitionNames;
 	}
+
+	/**
+	 * Get the Unique UU Index name
+	 * @return indexName
+	 */
+	public static String getUUIDIndexName(String tableName) {
+
+		StringBuilder indexName = new StringBuilder().append(PO.getUUIDColumnName(tableName)).append("_idx");
+		if (indexName.length() > AdempiereDatabase.MAX_OBJECT_NAME_LENGTH)
+			indexName = new StringBuilder().append(PO.getUUIDColumnName(tableName).substring(0, AdempiereDatabase.MAX_OBJECT_NAME_LENGTH - 5)).append("uuidx");
+
+		return indexName.toString();
+	}
+
+	private Boolean hasCustomTree = null;
+
+	/**
+	 * If the table has a custom tree defined
+	 * @return
+	 */
+	public boolean hasCustomTree() {
+		if (hasCustomTree == null) {
+			int exists = DB.getSQLValueEx(get_TrxName(), "SELECT 1 FROM AD_Tree WHERE TreeType=? AND AD_Table_ID=? AND IsActive='Y'", MTree_Base.TREETYPE_CustomTable, getAD_Table_ID());
+			hasCustomTree = Boolean.valueOf(exists == 1);
+		}
+		return hasCustomTree.booleanValue();
+	}
+
 }	//	MTable
