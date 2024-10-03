@@ -114,7 +114,7 @@ public abstract class PO
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = -7758079724744033518L;
+	private static final long serialVersionUID = 6591172659109078284L;
 
 	/* String key to create a new record based in UUID constructor */
 	public static final String UUID_NEW_RECORD = "";
@@ -2223,7 +2223,7 @@ public abstract class PO
 		if (   columnName == null 
 			|| AD_Language == null
 			|| m_IDs.length > 1
-			|| (m_IDs[0] instanceof Integer && m_IDs[0].equals(I_ZERO))
+			|| (m_IDs[0] instanceof Integer && m_IDs[0].equals(I_ZERO) && ! MTable.isZeroIDTable(get_TableName()))
 			|| (m_IDs[0] instanceof String && Util.isEmpty((String)m_IDs[0]))
 			|| !(m_IDs[0] instanceof Integer || m_IDs[0] instanceof String))
 		{
@@ -2590,9 +2590,25 @@ public abstract class PO
 
 	/**
 	 * Update Value or create new record, used when writing a cross tenant record
-	 * @param trxName transaction
 	 * @throws AdempiereException
-	 * @see #saveEx(String)
+	 * @see #save()
+	 */
+	public boolean saveCrossTenantSafe() {
+		boolean crossTenantSet = isSafeCrossTenant.get();
+		try {
+			if (!crossTenantSet)
+				PO.setCrossTenantSafe();
+			return save();
+		} finally {
+			if (!crossTenantSet)
+				PO.clearCrossTenantSafe();
+		}
+	}
+	
+	/**
+	 * Update Value or create new record, used when writing a cross tenant record
+	 * @throws AdempiereException
+	 * @see #saveEx()
 	 */
 	public void saveCrossTenantSafeEx() {
 		boolean crossTenantSet = isSafeCrossTenant.get();
@@ -2693,7 +2709,7 @@ public abstract class PO
 			m_createNew = false;
 		}
 		if (!newRecord)
-			MRecentItem.clearLabel(p_info.getAD_Table_ID(), get_UUID());
+			MRecentItem.clearLabel(p_info.getAD_Table_ID(), get_ID(), get_UUID());
 		if (CacheMgt.get().hasCache(p_info.getTableName())) {
 			boolean cacheResetScheduled = false;
 			if (get_TrxName() != null) {
@@ -3021,6 +3037,8 @@ public abstract class PO
 			{
 				if (value instanceof Timestamp && dt == DisplayType.Date)
 					sql.append("trunc(cast(? as date))");
+				else if (dt == DisplayType.JSON)
+					sql.append(DB.getJSONCast());
 				else
 					sql.append("?");
 				
@@ -3046,7 +3064,7 @@ public abstract class PO
 					} else {
 						params.add(encrypt(i,value));
 					}
-				}
+				} 
 				else
 				{
 					params.add(value);
@@ -3635,6 +3653,8 @@ public abstract class PO
 			{				
 				if (value instanceof Timestamp && dt == DisplayType.Date)
 					sqlValues.append("trunc(cast(? as date))");
+				else if (dt == DisplayType.JSON)
+					sqlValues.append(DB.getJSONCast());
 				else
 					sqlValues.append("?");
 							
@@ -3693,9 +3713,9 @@ public abstract class PO
 					&& !"Password".equals(p_info.getColumnName(i))
 					&& (insertLog.equalsIgnoreCase("Y")
 							|| (insertLog.equalsIgnoreCase("K")
-								&& (   p_info.getColumn(i).IsKey)
+								&& (   p_info.getColumn(i).IsKey
 									|| (   !p_info.hasKeyColumn()
-										&& p_info.getColumn(i).ColumnName.equals(PO.getUUIDColumnName(p_info.getTableName())))))
+										&& p_info.getColumn(i).ColumnName.equals(PO.getUUIDColumnName(p_info.getTableName()))))))
 					)
 				{
 					// change log on new

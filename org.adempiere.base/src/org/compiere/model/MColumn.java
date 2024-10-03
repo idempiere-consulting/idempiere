@@ -51,6 +51,10 @@ import org.idempiere.expression.logic.LogicEvaluator;
  */
 public class MColumn extends X_AD_Column implements ImmutablePOSupport
 {
+	public static final String VIRTUAL_SEARCH_COLUMN_PREFIX = "@SQLFIND=";
+
+	public static final String VIRTUAL_UI_COLUMN_PREFIX = "@SQL=";
+
 	/**
 	 * generated serial id 
 	 */
@@ -168,7 +172,7 @@ public class MColumn extends X_AD_Column implements ImmutablePOSupport
 	}	//	getColumnName
 	
 	/**	Cache						*/
-	private static ImmutableIntPOCache<Integer,MColumn>	s_cache	= new ImmutableIntPOCache<Integer,MColumn>(Table_Name, 20);
+	private static ImmutableIntPOCache<Integer,MColumn>	s_cache	= new ImmutableIntPOCache<Integer,MColumn>(Table_Name, Table_Name, 20, 0, false, 0);
 	
     /**
      * UUID based Constructor
@@ -311,7 +315,7 @@ public class MColumn extends X_AD_Column implements ImmutablePOSupport
 	public boolean isVirtualDBColumn()
 	{
 		String s = getColumnSQL();
-		return s != null && s.length() > 0 && !s.startsWith("@SQL=");
+		return s != null && s.length() > 0 && !s.startsWith(VIRTUAL_UI_COLUMN_PREFIX) && !s.startsWith(VIRTUAL_SEARCH_COLUMN_PREFIX);
 	}	//	isVirtualDBColumn
 
 	/**
@@ -321,7 +325,7 @@ public class MColumn extends X_AD_Column implements ImmutablePOSupport
 	public boolean isVirtualUIColumn()
 	{
 		String s = getColumnSQL();
-		return s != null && s.length() > 0 && s.startsWith("@SQL=");
+		return s != null && s.length() > 0 && s.startsWith(VIRTUAL_UI_COLUMN_PREFIX);
 	}	//	isVirtualUIColumn
 	
 	/**
@@ -331,7 +335,7 @@ public class MColumn extends X_AD_Column implements ImmutablePOSupport
 	public boolean isVirtualSearchColumn()
 	{
 		String s = getColumnSQL();
-		return s != null && s.length() > 0 && s.startsWith("@SQLFIND=");
+		return s != null && s.length() > 0 && s.startsWith(VIRTUAL_SEARCH_COLUMN_PREFIX);
 	}	//	isVirtualSearchColumn
 
 	/**
@@ -376,7 +380,7 @@ public class MColumn extends X_AD_Column implements ImmutablePOSupport
 		}
 
 		int displayType = getAD_Reference_ID();
-		if (DisplayType.isLOB(displayType))	//	LOBs are 0
+		if (DisplayType.isLOB(displayType) || displayType == DisplayType.JSON)	//	LOBs are 0
 		{
 			if (getFieldLength() != 0)
 				setFieldLength(0);
@@ -540,7 +544,7 @@ public class MColumn extends X_AD_Column implements ImmutablePOSupport
 
 		//validate readonly logic expression
 		if (newRecord || is_ValueChanged(COLUMNNAME_ReadOnlyLogic)) {
-			if (isActive() && !Util.isEmpty(getReadOnlyLogic(), true) && !getReadOnlyLogic().startsWith("@SQL=")) {
+			if (isActive() && !Util.isEmpty(getReadOnlyLogic(), true) && !getReadOnlyLogic().startsWith(VIRTUAL_UI_COLUMN_PREFIX)) {
 				LogicEvaluator.validate(getReadOnlyLogic());
 			}
 		}
@@ -1375,11 +1379,11 @@ public class MColumn extends X_AD_Column implements ImmutablePOSupport
 	public String getColumnSQL(boolean nullForUI, boolean nullForSearch) {
 		String query = getColumnSQL();
 		if (query != null && query.length() > 0) {
-			if (query.startsWith("@SQL=") && nullForUI)
+			if (query.startsWith(VIRTUAL_UI_COLUMN_PREFIX) && nullForUI)
 				query = "NULL";
-			else if (query.startsWith("@SQLFIND=") && nullForSearch)
+			else if (query.startsWith(VIRTUAL_SEARCH_COLUMN_PREFIX) && nullForSearch)
 				query = "NULL";
-			else if (query.startsWith("@SQLFIND=") && !nullForSearch)
+			else if (query.startsWith(VIRTUAL_SEARCH_COLUMN_PREFIX) && !nullForSearch)
 				query = query.substring(9);
 		}
 		return query;

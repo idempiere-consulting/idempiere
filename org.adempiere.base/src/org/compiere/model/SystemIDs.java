@@ -93,6 +93,7 @@ public class SystemIDs
 	public final static int PROCESS_AD_CHANGELOG_REDO = 307;
 	public final static int PROCESS_AD_NATIVE_SEQUENCE_ENABLE = 53156;
 	public final static int PROCESS_AD_TAB_CREATEFIELDS = 174;
+	public final static int PROCESS_C_BPARTNER_VALIDATE = 314;
 	public final static int PROCESS_C_INVOICE_GENERATE = 119;
 	public final static int PROCESS_C_INVOICE_GENERATE_MANUAL = 134;
 	public final static int PROCESS_C_INVOICE_GENERATERMA_MANUAL = 52002;
@@ -163,6 +164,7 @@ public class SystemIDs
 	public final static int REFERENCE_DATATYPE_TABLEDIR_UU = 200234;
 	public final static int REFERENCE_DATATYPE_TEXT = 14;
 	public final static int REFERENCE_DATATYPE_TEXTLONG = 36;
+	public final static int REFERENCE_DATATYPE_JSON = 200267;
 	public final static int REFERENCE_DATATYPE_TIME = 24;
 	public final static int REFERENCE_DATATYPE_TIMESTAMP_WITH_TIMEZONE = 200133;
 	public final static int REFERENCE_DATATYPE_TIMEZONE = 200135;
@@ -227,6 +229,7 @@ public class SystemIDs
 	public final static int WINDOW_RETURNTOVENDOR = 53098;
 	public final static int WINDOW_SALES_ORDER = 143;
 	public final static int WINDOW_SHIPMENT_CUSTOMER = 169;
+	public final static int WINDOW_TEST = 127;
 	public final static int WINDOW_VENDOR_RMA = 53099;
 	public final static int WINDOW_WAREHOUSE_LOCATOR = 139;
 	public final static int WINDOW_WINDOW_TAB_FIELD = 102;	

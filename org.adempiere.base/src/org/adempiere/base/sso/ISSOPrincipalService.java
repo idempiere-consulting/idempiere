@@ -21,6 +21,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.compiere.util.Language;
 
 /**
+ * Single sign on service interface
  * @author Logilite Technologies
  */
 public interface ISSOPrincipalService
@@ -45,8 +46,8 @@ public interface ISSOPrincipalService
 	 * 
 	 * @param  request      HttpServletRequest
 	 * @param  response     HttpServletResponse
-	 * @param  redirectMode {@value SSOUtils.SSO_MODE_WEBUI}, {@value SSOUtils.SSO_MODE_OSGI},
-	 *                      {@value SSOUtils.SSO_MODE_MONITOR}
+	 * @param  redirectMode {@value SSOUtils#SSO_MODE_WEBUI}, {@value SSOUtils#SSO_MODE_OSGI},
+	 *                      {@value SSOUtils#SSO_MODE_MONITOR}
 	 * @throws Throwable
 	 */
 	public void getAuthenticationToken(HttpServletRequest request, HttpServletResponse response, String redirectMode) throws Throwable;
@@ -65,8 +66,8 @@ public interface ISSOPrincipalService
 	 * 
 	 * @param  request      HttpServletRequest
 	 * @param  response     HttpServletResponse
-	 * @param  redirectMode {@value SSOUtils.SSO_MODE_WEBUI}, {@value SSOUtils.SSO_MODE_OSGI},
-	 *                      {@value SSOUtils.SSO_MODE_MONITOR}
+	 * @param  redirectMode {@value SSOUtils#SSO_MODE_WEBUI}, {@value SSOUtils#SSO_MODE_OSGI},
+	 *                      {@value SSOUtils#SSO_MODE_MONITOR}
 	 * @throws IOException
 	 */
 	public void redirectForAuthentication(HttpServletRequest request, HttpServletResponse response, String redirectMode) throws IOException;

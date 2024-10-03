@@ -207,8 +207,9 @@ public class Translation implements IApplication
 				return "";
 		}
 
-		String keyColumn = Base_Table + "_ID";
-		String uuidColumn = MTable.getUUIDColumnName(Base_Table);
+		MTable baseTable = MTable.get(Env.getCtx(), Base_Table);
+		String keyColumn = baseTable.getKeyColumns()[0];
+		String uuidColumn = PO.getUUIDColumnName(Base_Table);
 		String[] trlColumns = getTrlColumns (Base_Table);
 		//
 		StringBuilder sql = null;
@@ -256,10 +257,12 @@ public class Translation implements IApplication
 				sql.append (haveWhere ? " AND " : " WHERE ").append ("o.IsCentrallyMaintained='N'");
 				haveWhere = true;
 			}
-			if (AD_Client_ID >= 0)
+			if (AD_Client_ID >= 0) {
 				sql.append(haveWhere ? " AND " : " WHERE ").append("o.AD_Client_ID=").append(AD_Client_ID);
+				haveWhere = true;
+			}
 
-			if (onlyCentralized)
+			if (onlyCentralized && keyColumn.endsWith("_ID"))
 				sql.append(haveWhere ? " AND " : " WHERE ").append(" o.").append(keyColumn).append("<=").append(MTable.MAX_OFFICIAL_ID).append(" AND o.IsActive = 'Y'");
 
 			sql.append(" ORDER BY t.").append(keyColumn);
@@ -272,9 +275,11 @@ public class Translation implements IApplication
 			while (rs.next())
 			{
 				Element row = document.createElement (XML_ROW_TAG);
-				int keyid = rs.getInt(2);
+				int keyid = -1;
+				if (! baseTable.isUUIDKeyTable())
+					keyid = rs.getInt(2);
 				String uuid = rs.getString(3);
-				if (keyid <= MTable.MAX_OFFICIAL_ID || Util.isEmpty(uuid)) {
+				if ((keyid >= 0 && keyid <= MTable.MAX_OFFICIAL_ID) || Util.isEmpty(uuid)) {
 					row.setAttribute(XML_ROW_ATTRIBUTE_ID, String.valueOf(keyid));	//	KeyColumn
 				} else {
 					row.setAttribute(XML_ROW_ATTRIBUTE_UUID, String.valueOf(uuid));	//	UUIDColumn
@@ -320,15 +325,9 @@ public class Translation implements IApplication
 			// Close writer - teo_sarca [ 1705883 ] 
 			writer.close();
 		}
-		catch (SQLException e)
-		{
-			log.log(Level.SEVERE, sql.toString(), e);
-			return e.toString();
-		}
 		catch (Exception e)
 		{
-			log.log(Level.SEVERE, "", e);
-			return e.toString();
+			throw new AdempiereException(e.getLocalizedMessage(), e);
 		}
 		finally
 		{

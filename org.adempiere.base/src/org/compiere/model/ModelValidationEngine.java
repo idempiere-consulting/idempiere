@@ -652,7 +652,7 @@ public class ModelValidationEngine
 			{
 				//log the stack trace
 				log.log(Level.SEVERE, e.getLocalizedMessage(), e);
-				// Exeptions are errors and should stop the document processing - teo_sarca [ 1679692 ]
+				// Exceptions are errors and should stop the document processing - teo_sarca [ 1679692 ]
 				String error = e.getLocalizedMessage();
 				if (error == null)
 					error = e.toString();
@@ -817,7 +817,7 @@ public class ModelValidationEngine
 			{
 				//log the stack trace
 				log.log(Level.SEVERE, e.getLocalizedMessage(), e);
-				// Exeptions are errors and should stop the document processing - teo_sarca [ 1679692 ]
+				// Exceptions are errors and should stop the document processing - teo_sarca [ 1679692 ]
 				String error = e.getLocalizedMessage();
 				if (error == null)
 					error = e.toString();
@@ -928,7 +928,7 @@ public class ModelValidationEngine
 	 * Fire afterLoadPreferences model validator event and {@link IEventTopics#PREF_AFTER_LOAD} OSGi event.
 	 * @param ctx context
 	 * @see org.compiere.util.Login#loadPreferences(KeyNamePair, KeyNamePair, java.sql.Timestamp, String)
-	 * @author Teo Sarca - FR [ 1670025 ] - https://sourceforge.net/p/adempiere/feature-requests/78/
+	 * author Teo Sarca - FR [ 1670025 ] - https://sourceforge.net/p/adempiere/feature-requests/78/
 	 */
 	public void afterLoadPreferences (Properties ctx)
 	{

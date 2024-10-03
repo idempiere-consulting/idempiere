@@ -25,10 +25,9 @@ import org.idempiere.cache.ImmutableIntPOCache;
 import org.idempiere.cache.ImmutablePOSupport;
 
 /**
- * 
+ * Extended model class for AD_BroadcastMessage
  * @author Vivek
  * @author Deepak Pansheriya
- *
  */
 public class MBroadcastMessage extends X_AD_BroadcastMessage implements ImmutablePOSupport
 {
@@ -40,11 +39,11 @@ public class MBroadcastMessage extends X_AD_BroadcastMessage implements Immutabl
 	static private ImmutableIntPOCache<Integer,MBroadcastMessage> s_cache = new ImmutableIntPOCache<Integer,MBroadcastMessage>("AD_BroadcastMessage", 30, 60);
 
     /**
-    * UUID based Constructor
-    * @param ctx  Context
-    * @param AD_BroadcastMessage_UU  UUID key
-    * @param trxName Transaction
-    */
+     * UUID based Constructor
+     * @param ctx  Context
+     * @param AD_BroadcastMessage_UU  UUID key
+     * @param trxName Transaction
+     */
     public MBroadcastMessage(Properties ctx, String AD_BroadcastMessage_UU, String trxName) {
         super(ctx, AD_BroadcastMessage_UU, trxName);
     }
@@ -70,7 +69,7 @@ public class MBroadcastMessage extends X_AD_BroadcastMessage implements Immutabl
     }
     
     /**
-     * 
+     * Copy constructor
      * @param copy
      */
     public MBroadcastMessage(MBroadcastMessage copy)
@@ -79,7 +78,7 @@ public class MBroadcastMessage extends X_AD_BroadcastMessage implements Immutabl
     }
     
     /**
-     * 
+     * Copy constructor
      * @param ctx
      * @param copy
      */
@@ -89,7 +88,7 @@ public class MBroadcastMessage extends X_AD_BroadcastMessage implements Immutabl
     }
     
     /**
-     * 
+     * Copy constructor
      * @param ctx
      * @param copy
      * @param trxName
@@ -216,11 +215,11 @@ public class MBroadcastMessage extends X_AD_BroadcastMessage implements Immutabl
 
 	/** 
 	 * Returns a link to be used in broadcast messages to open a record
-	 * @param PO po
-	 * @param uuid of the window
+	 * @param po PO
+	 * @param windowUUID of the window
 	 * @param text of the link
 	 * @return the URL link to set in the broadcast message
-	 * */
+	 */
 	public String getUrlZoom(PO po, String windowUUID, String text) {
 		StringBuilder url = new StringBuilder("");
 		url.append("<a href=\"javascript:void(0)\" class=\"rp-href\" onclick=\"window.idempiere.zoomWindow(@" + CLIENTINFO_BROADCAST_COMPONENT_ID + "@, '");
