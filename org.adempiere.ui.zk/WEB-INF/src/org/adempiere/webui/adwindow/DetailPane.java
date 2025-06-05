@@ -45,6 +45,7 @@ import org.adempiere.webui.component.ToolBarButton;
 import org.adempiere.webui.component.Window;
 import org.adempiere.webui.session.SessionManager;
 import org.adempiere.webui.theme.ThemeManager;
+import org.adempiere.webui.util.Icon;
 import org.adempiere.webui.util.ZKUpdateUtil;
 import org.adempiere.webui.window.CustomizeGridViewDialog;
 import org.adempiere.webui.window.WRecordInfo;
@@ -343,7 +344,7 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 		HashMap<String, ToolBarButton> buttons = new HashMap<String, ToolBarButton>();
 		ToolBarButton button = new ToolBarButton();
 		if (ThemeManager.isUseFontIconForImage())
-			button.setIconSclass("z-icon-New");
+			button.setIconSclass(Icon.getIconSclass(Icon.NEW));
 		else
 			button.setImage(ThemeManager.getThemeResource(NEW_IMAGE));
 		button.setId(BTN_NEW_ID);
@@ -359,7 +360,7 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 		
 		button = new ToolBarButton();
 		if (ThemeManager.isUseFontIconForImage())
-			button.setIconSclass("z-icon-Edit");
+			button.setIconSclass(Icon.getIconSclass(Icon.EDIT));
 		else
 			button.setImage(ThemeManager.getThemeResource(EDIT_IMAGE));
 		button.setId(BTN_EDIT_ID);
@@ -375,7 +376,7 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 
 		button = new ToolBarButton();
 		if (ThemeManager.isUseFontIconForImage())
-			button.setIconSclass("z-icon-Delete");
+			button.setIconSclass(Icon.getIconSclass(Icon.DELETE));
 		else
 			button.setImage(ThemeManager.getThemeResource(DELETE_IMAGE));
 		button.setId(BTN_DELETE_ID);
@@ -393,7 +394,7 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 
 		button = new ToolBarButton();
 		if (ThemeManager.isUseFontIconForImage())
-			button.setIconSclass("z-icon-Save");
+			button.setIconSclass(Icon.getIconSclass(Icon.SAVE));
 		else
 			button.setImage(ThemeManager.getThemeResource(SAVE_IMAGE));
 		button.setId(BTN_SAVE_ID);
@@ -412,7 +413,7 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 		if (!tabPanel.getGridTab().isSortTab()) {
 			button = new ToolBarButton();
 			if (ThemeManager.isUseFontIconForImage())
-				button.setIconSclass("z-icon-Process");
+				button.setIconSclass(Icon.getIconSclass(Icon.PROCESS));
 			else
 				button.setImage(ThemeManager.getThemeResource(PROCESS_IMAGE));
 			button.setId(BTN_PROCESS_ID);
@@ -430,7 +431,7 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 		// ADD Quick Form Button
 		button = new ToolBarButton();
 		if (ThemeManager.isUseFontIconForImage())
-			button.setIconSclass("z-icon-QuickForm");
+			button.setIconSclass(Icon.getIconSclass(Icon.QUICK_FORM));
 		else
 			button.setImage(ThemeManager.getThemeResource(QUICK_FORM_IMAGE));
 		button.setId(BTN_QUICK_FORM_ID);
@@ -444,13 +445,13 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 				}
 			}
 		});
-		button.setTooltiptext(Util.cleanAmp(Msg.getMsg(Env.getCtx(), "QuickForm")) + "    Shift+Alt+Q");
+		button.setTooltiptext(Util.cleanAmp(Msg.getMsg(Env.getCtx(), "QuickForm")) + "    Shift+Alt+F");
 		buttons.put(BTN_QUICK_FORM_ID.substring(3, BTN_QUICK_FORM_ID.length()), button);
 		
 		// ADD Customize grid button
 		button = new ToolBarButton();
 		if (ThemeManager.isUseFontIconForImage())
-			button.setIconSclass("z-icon-Customize");
+			button.setIconSclass(Icon.getIconSclass(Icon.CUSTOMIZE));
 		else
 			button.setImage(ThemeManager.getThemeResource(CUSTOMIZE_IMAGE));
 		button.setId(BTN_CUSTOMIZE_ID);
@@ -461,7 +462,7 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 		// ADD toggle grid button
 		button = new ToolBarButton();
 		if (ThemeManager.isUseFontIconForImage())
-			button.setIconSclass("z-icon-Multi");
+			button.setIconSclass(Icon.getIconSclass(Icon.MULTI));
 		else
 			button.setImage(ThemeManager.getThemeResource(TOGGLE_IMAGE));
 		button.setId(BTN_TOGGLE_ID);
@@ -553,7 +554,28 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 		recordToolbar.addEventListener(ON_RECORD_NAVIGATE_EVENT, eventListener);
 		tp.setRecordToolbar(recordToolbar);
 		tp.setADTabpanel(tabPanel);
-		
+		if (tabPanel instanceof ADTabpanel adTabpanel) {
+			tp.addEventListener(ADTabpanel.ON_SWIPE_RIGHT, e -> {
+				RecordToolbar rtb = tp.getRecordToolbar();
+				if (rtb != null && rtb.isVisible()) {
+					if (!rtb.btnPrevious.isDisabled()) {
+						LayoutUtils.addSclass(ADTabpanel.SLIDE_RIGHT_OUT_CSS, adTabpanel.form);
+						Events.sendEvent(Events.ON_CLICK, rtb.btnPrevious, null);
+					}
+				}
+			});
+			tp.addEventListener(ADTabpanel.ON_SWIPE_LEFT, e -> {
+				RecordToolbar rtb = tp.getRecordToolbar();
+				if (rtb != null && rtb.isVisible()) {
+					if (!rtb.btnNext.isDisabled()) {
+						LayoutUtils.addSclass(ADTabpanel.SLIDE_LEFT_OUT_CSS, adTabpanel.form);
+						Events.sendEvent(Events.ON_CLICK, rtb.btnNext, null);
+					}
+				}
+			});
+			adTabpanel.setupFormSwipeListener(tp);
+		}
+
 		if (tabPanel.getGridView() != null) {
 			tabPanel.addEventListener(ADTabpanel.ON_DYNAMIC_DISPLAY_EVENT, this);
 			tabPanel.getGridView().addEventListener(ON_EDIT_EVENT, new EventListener<Event>() {
@@ -1108,14 +1130,6 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 		eventListener.onEvent(openEvent);
 	}
 
-    private static final int VK_N = 0x4E;
-    private static final int VK_T = 0x54;
-    private static final int VK_E = 0x45;
-    private static final int VK_S = 0x53;
-    private static final int VK_D = 0x44;
-    private static final int VK_O = 0x4F;
-    private static final int VK_Q = 0x51;
-    
     /**
      * Handle shortcut key event
      * @param keyEvent
@@ -1123,9 +1137,9 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 	private void onCtrlKeyEvent(KeyEvent keyEvent) {
 		ToolBarButton btn = null;
 		if (keyEvent.isAltKey() && !keyEvent.isCtrlKey() && keyEvent.isShiftKey()) { // Shift+Alt key
-			if (keyEvent.getKeyCode() == VK_N) { // Shift+Alt+N
+			if (keyEvent.getKeyCode() == ADWindowToolbar.VK_N) { // Shift+Alt+N
 				btn = getSelectedPanel().getToolbarButton(BTN_NEW_ID);
-			} else if (keyEvent.getKeyCode() == VK_T) {
+			} else if (keyEvent.getKeyCode() == ADWindowToolbar.VK_T) {
 				btn = getSelectedPanel().getToolbarButton(BTN_TOGGLE_ID);
 			} else if (keyEvent.getKeyCode() == KeyEvent.HOME) {
 				btn = getSelectedPanel().getRecordToolbar().btnFirst;
@@ -1137,15 +1151,15 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 				btn = getSelectedPanel().getRecordToolbar().btnNext;
 			} else if (keyEvent.getKeyCode() == KeyEvent.HOME) {
 				btn = getSelectedPanel().getRecordToolbar().btnFirst;
-			} else if (keyEvent.getKeyCode() == VK_E) {
+			} else if (keyEvent.getKeyCode() == ADWindowToolbar.VK_E) {
 				btn = getSelectedPanel().getToolbarButton(BTN_EDIT_ID);
-			} else if (keyEvent.getKeyCode() == VK_S) {
+			} else if (keyEvent.getKeyCode() == ADWindowToolbar.VK_S) {
 				btn = getSelectedPanel().getToolbarButton(BTN_SAVE_ID);
-			} else if (keyEvent.getKeyCode() == VK_D) {
+			} else if (keyEvent.getKeyCode() == ADWindowToolbar.VK_D) {
 				btn = getSelectedPanel().getToolbarButton(BTN_DELETE_ID);
-			} else if (keyEvent.getKeyCode() == VK_O) {
+			} else if (keyEvent.getKeyCode() == ADWindowToolbar.VK_O) {
 				btn = getSelectedPanel().getToolbarButton(BTN_PROCESS_ID);
-			} else if (keyEvent.getKeyCode() == VK_Q) {
+			} else if (keyEvent.getKeyCode() == ADWindowToolbar.VK_F) {
 				btn = getSelectedPanel().getToolbarButton(BTN_QUICK_FORM_ID);
 			}
 		} 
@@ -1326,7 +1340,7 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 		private void createOverflowButton() {
 			overflowButton = new A();
 			overflowButton.setTooltiptext(Msg.getMsg(Env.getCtx(), "ShowMore"));
-			overflowButton.setIconSclass("z-icon-ShowMore");
+			overflowButton.setIconSclass(Icon.getIconSclass(Icon.SHOW_MORE));
 			overflowButton.setSclass("font-icon-toolbar-button toolbar-button mobile-overflow-link");
 			toolbar.appendChild(overflowButton);
 			newOverflowPopup();
@@ -1437,7 +1451,7 @@ public class DetailPane extends Panel implements EventListener<Event>, IdSpace {
 	        btn.setId(name);
 	    	String suffix = "16.png";
 	    	if (ThemeManager.isUseFontIconForImage())
-	    		btn.setIconSclass("z-icon-"+image+"Record");
+	    		btn.setIconSclass(Icon.getIconSclass(image+"Record"));
 	    	else
 	    		btn.setImage(ThemeManager.getThemeResource("images/"+image + suffix));
 	        btn.setTooltiptext(Msg.getMsg(Env.getCtx(),tooltip));

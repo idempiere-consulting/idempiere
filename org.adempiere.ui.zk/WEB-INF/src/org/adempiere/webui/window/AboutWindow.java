@@ -21,6 +21,7 @@ import java.util.Vector;
 import java.util.logging.Level;
 
 import org.adempiere.exceptions.AdempiereException;
+import org.adempiere.webui.ClientInfo;
 import org.adempiere.webui.LayoutUtils;
 import org.adempiere.webui.apps.AEnv;
 import org.adempiere.webui.component.Button;
@@ -44,6 +45,7 @@ import org.adempiere.webui.event.DialogEvents;
 import org.adempiere.webui.factory.ButtonFactory;
 import org.adempiere.webui.theme.ThemeManager;
 import org.adempiere.webui.util.FeedbackManager;
+import org.adempiere.webui.util.Icon;
 import org.adempiere.webui.util.Statistic;
 import org.adempiere.webui.util.ZKUpdateUtil;
 import org.compiere.Adempiere;
@@ -161,10 +163,15 @@ public class AboutWindow extends Window implements EventListener<Event> {
 		southPane.appendChild(btnOk);
 
 		this.setBorder("normal");
-		if (!ThemeManager.isUseCSSForWindowSize())
+
+		if (ClientInfo.maxWidth(ClientInfo.SMALL_WIDTH) || ClientInfo.maxHeight(ClientInfo.SMALL_HEIGHT)) {
+			this.setMaximized(true);
+			this.setSizable(false);
+			this.setMaximizable(false);
+		}else if (!ThemeManager.isUseCSSForWindowSize())
 		{
-			ZKUpdateUtil.setWindowWidthX(this, 600);
-			ZKUpdateUtil.setWindowHeightX(this, 450);
+			ZKUpdateUtil.setWindowWidthX(this, 800);
+			ZKUpdateUtil.setWindowHeightX(this, 600);
 		}
 		else
 		{
@@ -302,17 +309,20 @@ public class AboutWindow extends Window implements EventListener<Event> {
 		bErrorsOnly.addEventListener(Events.ON_CHECK, this);
 		hbox.appendChild(bErrorsOnly);
 		hbox.appendChild(new Space());
-		btnDownload = new Button(Msg.getMsg(Env.getCtx(), "SaveFile"));
+        btnDownload = new Button(Msg.getMsg(Env.getCtx(), "SaveFile"));
+		btnDownload.setIconSclass(Icon.getIconSclass(Icon.SAVE));	
 		btnDownload .setTooltiptext("Download session log");
 		LayoutUtils.addSclass("txt-btn", btnDownload);
 		btnDownload.addEventListener(Events.ON_CLICK, this);
 		hbox.appendChild(btnDownload);
-		btnErrorEmail = new Button(Msg.getMsg(Env.getCtx(), "SendEMail"));
+        btnErrorEmail = new Button(Msg.getMsg(Env.getCtx(), "SendEMail"));
+		btnErrorEmail.setIconSclass(Icon.getIconSclass(Icon.SEND_MAIL));
 		btnErrorEmail.setTooltiptext("Email session log");
 		LayoutUtils.addSclass("txt-btn", btnErrorEmail);
 		btnErrorEmail.addEventListener(Events.ON_CLICK, this);
 		hbox.appendChild(btnErrorEmail);
-		btnViewLog = new Button(Util.cleanAmp(Msg.getMsg(Env.getCtx(), "View")));
+        btnViewLog = new Button(Util.cleanAmp(Msg.getMsg(Env.getCtx(), "View")));
+		btnViewLog.setIconSclass(Icon.getIconSclass(Icon.FILE));
 		btnViewLog.setTooltiptext("View session log");
 		LayoutUtils.addSclass("txt-btn", btnViewLog);
 		btnViewLog.addEventListener(Events.ON_CLICK, this);
@@ -320,6 +330,11 @@ public class AboutWindow extends Window implements EventListener<Event> {
 		ZKUpdateUtil.setHflex(hbox, "1");
 		ZKUpdateUtil.setVflex(hbox, "0");
 		vbox.appendChild(hbox);
+		if (ClientInfo.maxWidth(ClientInfo.SMALL_WIDTH) || ClientInfo.maxHeight(ClientInfo.SMALL_HEIGHT)) {
+			btnDownload.setLabel("");
+			btnErrorEmail.setLabel("");
+			btnViewLog.setLabel("");
+		}
 
 		Vector<String> columnNames = CLogErrorBuffer.get(true).getColumnNames(Env.getCtx());
 
@@ -396,24 +411,13 @@ public class AboutWindow extends Window implements EventListener<Event> {
 	 */
 	protected Tabpanel createCredit() {
 		Tabpanel tabPanel = new Tabpanel();
-		String fileName = Adempiere.getAdempiereHome() + File.separator + "Credits.html";
-		File file = new File(fileName);
-		AMedia media = null;
-		try {
-			media = new AMedia(file.getName(), "html", "text/html", file, false);
-		} catch (FileNotFoundException e) {
-			log.warning("File " + fileName + " not found");
-		}
 		Iframe iframe = new Iframe();
 		ZKUpdateUtil.setWidth(iframe, "100%");
 		ZKUpdateUtil.setHeight(iframe, "100%");
 		iframe.setStyle("overflow: auto;");
 		iframe.setId("creditsFrame");
 		iframe.setParent(tabPanel);
-		iframe.setSrc(null);
-		if (media != null)
-			iframe.setContent(media);
-
+		iframe.setSrc("/html/Credits.html");
 		return tabPanel;
 	}
 

@@ -423,8 +423,26 @@ public class MBankStatement extends X_C_BankStatement implements DocAction
 			if (line.getC_Payment_ID() != 0)
 			{
 				MPayment payment = new MPayment (getCtx(), line.getC_Payment_ID(), get_TrxName());
+				if (payment.isReconciled()) {
+					m_processMsg = Msg.getMsg(getCtx(), "PaymentIsAlreadyReconciled") + payment;
+					return DocAction.STATUS_Invalid;
+				}
 				payment.setIsReconciled(true);
 				payment.saveEx(get_TrxName());
+			}
+			else if (line.getC_DepositBatch_ID() != 0)
+			{
+				MDepositBatchLine[] depositBatchLines = ((MDepositBatch)line.getC_DepositBatch()).getLines();
+				for (MDepositBatchLine mDepositBatchLine : depositBatchLines)
+				{
+					MPayment payment= new MPayment(getCtx(),mDepositBatchLine.getC_Payment_ID(),get_TrxName());
+					if (payment.isReconciled()) {
+						m_processMsg = Msg.getMsg(getCtx(), "PaymentIsAlreadyReconciled") + payment;
+						return DocAction.STATUS_Invalid;
+					}
+					payment.setIsReconciled(true);
+					payment.saveEx(get_TrxName());
+				}
 			}
 		}
 		//	Update Bank Account
@@ -553,8 +571,18 @@ public class MBankStatement extends X_C_BankStatement implements DocAction
 					MPayment payment = new MPayment (getCtx(), line.getC_Payment_ID(), get_TrxName());
 					payment.setIsReconciled(false);
 					payment.saveEx();
-					line.setC_Payment_ID(0);
 				}
+				else if (line.getC_DepositBatch_ID() != 0)
+				{
+					MDepositBatchLine[] depositBatchLines = ((MDepositBatch)line.getC_DepositBatch()).getLines();
+					for (MDepositBatchLine mDepositBatchLine : depositBatchLines)
+					{
+						MPayment payment=new MPayment(getCtx(), mDepositBatchLine.getC_Payment_ID(),get_TrxName());
+						payment.setIsReconciled(false);
+						payment.saveEx();
+					}
+				}
+				line.setC_Payment_ID(0);
 				line.saveEx();
 			}
 		}
@@ -649,6 +677,11 @@ public class MBankStatement extends X_C_BankStatement implements DocAction
 
 		MPeriod.testPeriodOpen(getCtx(), getDateAcct(), MDocType.DOCBASETYPE_BankStatement, getAD_Org_ID());
 
+		if (!DocumentEngine.canReactivateThisDocType(getC_DocType_ID())) {
+			m_processMsg = Msg.getMsg(getCtx(), "DocTypeCannotBeReactivated", new Object[] {MDocType.get(getC_DocType_ID()).getNameTrl()});
+			return false;
+		}
+
 		MFactAcct.deleteEx(Table_ID, getC_BankStatement_ID(), get_TrxName());
 		setPosted(false);
 
@@ -661,6 +694,16 @@ public class MBankStatement extends X_C_BankStatement implements DocAction
 				MPayment payment = new MPayment (getCtx(), line.getC_Payment_ID(), get_TrxName());
 				payment.setIsReconciled(false);
 				payment.saveEx();
+			}
+			else if (line.getC_DepositBatch_ID() != 0)
+			{
+				MDepositBatchLine[] depositBatchLines = ((MDepositBatch)line.getC_DepositBatch()).getLines();
+				for (MDepositBatchLine mDepositBatchLine : depositBatchLines)
+				{
+					MPayment payment=new MPayment(getCtx(), mDepositBatchLine.getC_Payment_ID(),get_TrxName());
+					payment.setIsReconciled(false);
+					payment.saveEx(get_TrxName());
+				}
 			}
 		}
 

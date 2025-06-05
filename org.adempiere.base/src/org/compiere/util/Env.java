@@ -138,7 +138,7 @@ public final class Env
 	public static final String UI_CLIENT = "#UIClient";
 	public static final String USER_LEVEL = "#User_Level";
 
-	private static final String PREFIX_SYSTEM_VARIABLE = "$env.";
+	public static final String PREFIX_SYSTEM_VARIABLE = "$env.";
 
 	@Deprecated
 	private final static ContextProvider clientContextProvider = new DefaultContextProvider();
@@ -154,6 +154,7 @@ public final class Env
 	 * @param provider
 	 * @deprecated
 	 */
+	@Deprecated
 	public static void setContextProvider(ContextProvider provider)
 	{
 	}
@@ -600,10 +601,13 @@ public final class Env
 		if (context.startsWith(PREFIX_SYSTEM_VARIABLE)) {
 			String retValue = System.getenv(context.substring(PREFIX_SYSTEM_VARIABLE.length()));
 			if (retValue == null)
-				retValue = "";
+				retValue = System.getProperty(context.substring(PREFIX_SYSTEM_VARIABLE.length()), "");
 			return retValue;
 		}
-		return ctx.getProperty(context, "");
+		String value = ctx.getProperty(context, "");
+		if (Util.isEmpty(value) && !context.startsWith("#"))
+			value = ctx.getProperty("#"+context, "");
+		return value;
 	}	//	getContext
 
 	/**
@@ -2159,6 +2163,7 @@ public final class Env
 	 *   VAR='VALUE'
 	 *  The + prefix is not required, is added here to the defined variables.
 	 * </pre>
+	 * NOTE that any line that doesn't contain an equal sign (=) is ignored, can be used simply as a comment
 	 * @param ctx
 	 * @param windowNo window number or -1 to global level
 	 * @param predefinedVariables

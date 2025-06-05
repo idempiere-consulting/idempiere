@@ -23,7 +23,7 @@ import org.compiere.util.KeyNamePair;
 
 /** Generated Model for M_Warehouse
  *  @author iDempiere (generated)
- *  @version Release 11 - $Id$ */
+ *  @version Release 13 - $Id$ */
 @org.adempiere.base.Model(table="M_Warehouse")
 public class X_M_Warehouse extends PO implements I_M_Warehouse, I_Persistent
 {
@@ -31,7 +31,7 @@ public class X_M_Warehouse extends PO implements I_M_Warehouse, I_Persistent
 	/**
 	 *
 	 */
-	private static final long serialVersionUID = 20231222L;
+	private static final long serialVersionUID = 20250516L;
 
     /** Standard Constructor */
     public X_M_Warehouse (Properties ctx, int M_Warehouse_ID, String trxName)
@@ -40,6 +40,8 @@ public class X_M_Warehouse extends PO implements I_M_Warehouse, I_Persistent
       /** if (M_Warehouse_ID == 0)
         {
 			setC_Location_ID (0);
+			setIsDisableInventoryPopup (false);
+// N
 			setIsDisallowNegativeInv (false);
 // N
 			setM_Warehouse_ID (0);
@@ -57,6 +59,8 @@ public class X_M_Warehouse extends PO implements I_M_Warehouse, I_Persistent
       /** if (M_Warehouse_ID == 0)
         {
 			setC_Location_ID (0);
+			setIsDisableInventoryPopup (false);
+// N
 			setIsDisallowNegativeInv (false);
 // N
 			setM_Warehouse_ID (0);
@@ -74,6 +78,8 @@ public class X_M_Warehouse extends PO implements I_M_Warehouse, I_Persistent
       /** if (M_Warehouse_UU == null)
         {
 			setC_Location_ID (0);
+			setIsDisableInventoryPopup (false);
+// N
 			setIsDisallowNegativeInv (false);
 // N
 			setM_Warehouse_ID (0);
@@ -91,6 +97,8 @@ public class X_M_Warehouse extends PO implements I_M_Warehouse, I_Persistent
       /** if (M_Warehouse_UU == null)
         {
 			setC_Location_ID (0);
+			setIsDisableInventoryPopup (false);
+// N
 			setIsDisallowNegativeInv (false);
 // N
 			setM_Warehouse_ID (0);
@@ -173,6 +181,28 @@ public class X_M_Warehouse extends PO implements I_M_Warehouse, I_Persistent
 		return (String)get_Value(COLUMNNAME_Description);
 	}
 
+	/** Set Disable Insufficient Inventory Popup.
+		@param IsDisableInventoryPopup Disable Insufficient Inventory Popup
+	*/
+	public void setIsDisableInventoryPopup (boolean IsDisableInventoryPopup)
+	{
+		set_Value (COLUMNNAME_IsDisableInventoryPopup, Boolean.valueOf(IsDisableInventoryPopup));
+	}
+
+	/** Get Disable Insufficient Inventory Popup.
+		@return Disable Insufficient Inventory Popup	  */
+	public boolean isDisableInventoryPopup()
+	{
+		Object oo = get_Value(COLUMNNAME_IsDisableInventoryPopup);
+		if (oo != null)
+		{
+			 if (oo instanceof Boolean)
+				 return ((Boolean)oo).booleanValue();
+			return "Y".equals(oo);
+		}
+		return false;
+	}
+
 	/** Set Disallow Negative Inventory.
 		@param IsDisallowNegativeInv Negative Inventory is not allowed in this warehouse
 	*/
@@ -247,28 +277,6 @@ public class X_M_Warehouse extends PO implements I_M_Warehouse, I_Persistent
 		return ii.intValue();
 	}
 
-	/** Set Warehouse.
-		@param M_Warehouse_ID Storage Warehouse and Service Point
-	*/
-	public void setM_Warehouse_ID (int M_Warehouse_ID)
-	{
-		if (M_Warehouse_ID < 1)
-			set_ValueNoCheck (COLUMNNAME_M_Warehouse_ID, null);
-		else
-			set_ValueNoCheck (COLUMNNAME_M_Warehouse_ID, Integer.valueOf(M_Warehouse_ID));
-	}
-
-	/** Get Warehouse.
-		@return Storage Warehouse and Service Point
-	  */
-	public int getM_Warehouse_ID()
-	{
-		Integer ii = (Integer)get_Value(COLUMNNAME_M_Warehouse_ID);
-		if (ii == null)
-			 return 0;
-		return ii.intValue();
-	}
-
 	public org.compiere.model.I_M_Warehouse getM_WarehouseSource() throws RuntimeException
 	{
 		return (org.compiere.model.I_M_Warehouse)MTable.get(getCtx(), org.compiere.model.I_M_Warehouse.Table_ID)
@@ -292,6 +300,28 @@ public class X_M_Warehouse extends PO implements I_M_Warehouse, I_Persistent
 	public int getM_WarehouseSource_ID()
 	{
 		Integer ii = (Integer)get_Value(COLUMNNAME_M_WarehouseSource_ID);
+		if (ii == null)
+			 return 0;
+		return ii.intValue();
+	}
+
+	/** Set Warehouse.
+		@param M_Warehouse_ID Storage Warehouse and Service Point
+	*/
+	public void setM_Warehouse_ID (int M_Warehouse_ID)
+	{
+		if (M_Warehouse_ID < 1)
+			set_ValueNoCheck (COLUMNNAME_M_Warehouse_ID, null);
+		else
+			set_ValueNoCheck (COLUMNNAME_M_Warehouse_ID, Integer.valueOf(M_Warehouse_ID));
+	}
+
+	/** Get Warehouse.
+		@return Storage Warehouse and Service Point
+	  */
+	public int getM_Warehouse_ID()
+	{
+		Integer ii = (Integer)get_Value(COLUMNNAME_M_Warehouse_ID);
 		if (ii == null)
 			 return 0;
 		return ii.intValue();

@@ -22,7 +22,7 @@ import org.compiere.util.KeyNamePair;
 
 /** Generated Interface for M_Attribute
  *  @author iDempiere (generated) 
- *  @version Release 11
+ *  @version Release 13
  */
 public interface I_M_Attribute 
 {
@@ -35,9 +35,9 @@ public interface I_M_Attribute
 
     KeyNamePair Model = new KeyNamePair(Table_ID, Table_Name);
 
-    /** AccessLevel = 3 - Client - Org 
+    /** AccessLevel = 7 - System - Client - Org 
      */
-    BigDecimal accessLevel = BigDecimal.valueOf(3);
+    BigDecimal accessLevel = BigDecimal.valueOf(7);
 
     /** Load Meta Data */
 
@@ -149,6 +149,21 @@ public interface I_M_Attribute
 	  */
 	public String getDateFormat();
 
+    /** Column name DefaultValue */
+    public static final String COLUMNNAME_DefaultValue = "DefaultValue";
+
+	/** Set Default Logic.
+	  * Default value hierarchy, separated by ;
+
+	  */
+	public void setDefaultValue (String DefaultValue);
+
+	/** Get Default Logic.
+	  * Default value hierarchy, separated by ;
+
+	  */
+	public String getDefaultValue();
+
     /** Column name Description */
     public static final String COLUMNNAME_Description = "Description";
 
@@ -161,6 +176,21 @@ public interface I_M_Attribute
 	  * Optional short description of the record
 	  */
 	public String getDescription();
+
+    /** Column name EntityType */
+    public static final String COLUMNNAME_EntityType = "EntityType";
+
+	/** Set Entity Type.
+	  * Dictionary Entity Type;
+ Determines ownership and synchronization
+	  */
+	public void setEntityType (String EntityType);
+
+	/** Get Entity Type.
+	  * Dictionary Entity Type;
+ Determines ownership and synchronization
+	  */
+	public String getEntityType();
 
     /** Column name IsActive */
     public static final String COLUMNNAME_IsActive = "IsActive";
@@ -201,19 +231,6 @@ public interface I_M_Attribute
 	  */
 	public boolean isMandatory();
 
-    /** Column name M_Attribute_ID */
-    public static final String COLUMNNAME_M_Attribute_ID = "M_Attribute_ID";
-
-	/** Set Attribute.
-	  * Product Attribute
-	  */
-	public void setM_Attribute_ID (int M_Attribute_ID);
-
-	/** Get Attribute.
-	  * Product Attribute
-	  */
-	public int getM_Attribute_ID();
-
     /** Column name M_AttributeSearch_ID */
     public static final String COLUMNNAME_M_AttributeSearch_ID = "M_AttributeSearch_ID";
 
@@ -228,6 +245,19 @@ public interface I_M_Attribute
 	public int getM_AttributeSearch_ID();
 
 	public org.compiere.model.I_M_AttributeSearch getM_AttributeSearch() throws RuntimeException;
+
+    /** Column name M_Attribute_ID */
+    public static final String COLUMNNAME_M_Attribute_ID = "M_Attribute_ID";
+
+	/** Set Attribute.
+	  * Product Attribute
+	  */
+	public void setM_Attribute_ID (int M_Attribute_ID);
+
+	/** Get Attribute.
+	  * Product Attribute
+	  */
+	public int getM_Attribute_ID();
 
     /** Column name M_Attribute_UU */
     public static final String COLUMNNAME_M_Attribute_UU = "M_Attribute_UU";

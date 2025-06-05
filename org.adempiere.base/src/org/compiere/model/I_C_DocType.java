@@ -22,7 +22,7 @@ import org.compiere.util.KeyNamePair;
 
 /** Generated Interface for C_DocType
  *  @author iDempiere (generated) 
- *  @version Release 12
+ *  @version Release 13
  */
 public interface I_C_DocType 
 {
@@ -44,8 +44,8 @@ public interface I_C_DocType
     /** Column name AD_Client_ID */
     public static final String COLUMNNAME_AD_Client_ID = "AD_Client_ID";
 
-	/** Get Client.
-	  * Client/Tenant for this installation.
+	/** Get Tenant.
+	  * Tenant for this installation.
 	  */
 	public int getAD_Client_ID();
 
@@ -53,12 +53,12 @@ public interface I_C_DocType
     public static final String COLUMNNAME_AD_Org_ID = "AD_Org_ID";
 
 	/** Set Organization.
-	  * Organizational entity within client
+	  * Organizational entity within tenant
 	  */
 	public void setAD_Org_ID (int AD_Org_ID);
 
 	/** Get Organization.
-	  * Organizational entity within client
+	  * Organizational entity within tenant
 	  */
 	public int getAD_Org_ID();
 
@@ -91,19 +91,6 @@ public interface I_C_DocType
 	public int getC_DocTypeDifference_ID();
 
 	public org.compiere.model.I_C_DocType getC_DocTypeDifference() throws RuntimeException;
-
-    /** Column name C_DocType_ID */
-    public static final String COLUMNNAME_C_DocType_ID = "C_DocType_ID";
-
-	/** Set Document Type.
-	  * Document type or rules
-	  */
-	public void setC_DocType_ID (int C_DocType_ID);
-
-	/** Get Document Type.
-	  * Document type or rules
-	  */
-	public int getC_DocType_ID();
 
     /** Column name C_DocTypeInvoice_ID */
     public static final String COLUMNNAME_C_DocTypeInvoice_ID = "C_DocTypeInvoice_ID";
@@ -149,6 +136,19 @@ public interface I_C_DocType
 	public int getC_DocTypeShipment_ID();
 
 	public org.compiere.model.I_C_DocType getC_DocTypeShipment() throws RuntimeException;
+
+    /** Column name C_DocType_ID */
+    public static final String COLUMNNAME_C_DocType_ID = "C_DocType_ID";
+
+	/** Set Document Type.
+	  * Document type or rules
+	  */
+	public void setC_DocType_ID (int C_DocType_ID);
+
+	/** Get Document Type.
+	  * Document type or rules
+	  */
+	public int getC_DocType_ID();
 
     /** Column name C_DocType_UU */
     public static final String COLUMNNAME_C_DocType_UU = "C_DocType_UU";
@@ -333,6 +333,23 @@ public interface I_C_DocType
 	  */
 	public boolean isActive();
 
+    /** Column name IsAlwaysPosted */
+    public static final String COLUMNNAME_IsAlwaysPosted = "IsAlwaysPosted";
+
+	/** Set Always Posted.
+	  * Posts the document if &quot;
+AlwaysPosted&quot;
+ is checked, even without a valid accounting schema.
+	  */
+	public void setIsAlwaysPosted (boolean IsAlwaysPosted);
+
+	/** Get Always Posted.
+	  * Posts the document if &quot;
+AlwaysPosted&quot;
+ is checked, even without a valid accounting schema.
+	  */
+	public boolean isAlwaysPosted();
+
     /** Column name IsAutoGenerateInout */
     public static final String COLUMNNAME_IsAutoGenerateInout = "IsAutoGenerateInout";
 
@@ -358,6 +375,19 @@ public interface I_C_DocType
 	  * Automatically Generate Invoice after (Sales/Purchase) Order completed
 	  */
 	public boolean isAutoGenerateInvoice();
+
+    /** Column name IsCanBeReactivated */
+    public static final String COLUMNNAME_IsCanBeReactivated = "IsCanBeReactivated";
+
+	/** Set Can Be Reactivated.
+	  * This document can be reactivated
+	  */
+	public void setIsCanBeReactivated (boolean IsCanBeReactivated);
+
+	/** Get Can Be Reactivated.
+	  * This document can be reactivated
+	  */
+	public boolean isCanBeReactivated();
 
     /** Column name IsChargeOrProductMandatory */
     public static final String COLUMNNAME_IsChargeOrProductMandatory = "IsChargeOrProductMandatory";
@@ -420,19 +450,6 @@ public interface I_C_DocType
 	  */
 	public boolean isDocNoControlled();
 
-    /** Column name IsIndexed */
-    public static final String COLUMNNAME_IsIndexed = "IsIndexed";
-
-	/** Set Indexed.
-	  * Index the document for the internal search engine
-	  */
-	public void setIsIndexed (boolean IsIndexed);
-
-	/** Get Indexed.
-	  * Index the document for the internal search engine
-	  */
-	public boolean isIndexed();
-
     /** Column name IsInTransit */
     public static final String COLUMNNAME_IsInTransit = "IsInTransit";
 
@@ -445,6 +462,19 @@ public interface I_C_DocType
 	  * Movement is in transit
 	  */
 	public boolean isInTransit();
+
+    /** Column name IsIndexed */
+    public static final String COLUMNNAME_IsIndexed = "IsIndexed";
+
+	/** Set Indexed.
+	  * Index the document for the internal search engine
+	  */
+	public void setIsIndexed (boolean IsIndexed);
+
+	/** Get Indexed.
+	  * Index the document for the internal search engine
+	  */
+	public boolean isIndexed();
 
     /** Column name IsNoPriceListCheck */
     public static final String COLUMNNAME_IsNoPriceListCheck = "IsNoPriceListCheck";
@@ -499,19 +529,6 @@ public interface I_C_DocType
 	  */
 	public boolean isPrepareSplitDocument();
 
-    /** Column name IsShipConfirm */
-    public static final String COLUMNNAME_IsShipConfirm = "IsShipConfirm";
-
-	/** Set Ship/Receipt Confirmation.
-	  * Require Ship or Receipt Confirmation before processing
-	  */
-	public void setIsShipConfirm (boolean IsShipConfirm);
-
-	/** Get Ship/Receipt Confirmation.
-	  * Require Ship or Receipt Confirmation before processing
-	  */
-	public boolean isShipConfirm();
-
     /** Column name IsSOTrx */
     public static final String COLUMNNAME_IsSOTrx = "IsSOTrx";
 
@@ -524,6 +541,19 @@ public interface I_C_DocType
 	  * This is a Sales Transaction
 	  */
 	public boolean isSOTrx();
+
+    /** Column name IsShipConfirm */
+    public static final String COLUMNNAME_IsShipConfirm = "IsShipConfirm";
+
+	/** Set Ship/Receipt Confirmation.
+	  * Require Ship or Receipt Confirmation before processing
+	  */
+	public void setIsShipConfirm (boolean IsShipConfirm);
+
+	/** Get Ship/Receipt Confirmation.
+	  * Require Ship or Receipt Confirmation before processing
+	  */
+	public boolean isShipConfirm();
 
     /** Column name IsSplitWhenDifference */
     public static final String COLUMNNAME_IsSplitWhenDifference = "IsSplitWhenDifference";
